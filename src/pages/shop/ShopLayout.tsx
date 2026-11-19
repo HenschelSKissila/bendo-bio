@@ -1,0 +1,55 @@
+import { Link, NavLink, Outlet } from 'react-router-dom'
+import { ShoppingBasket, User, LayoutDashboard, Search } from 'lucide-react'
+import { useCart } from '../../lib/cart'
+import { useAuth } from '../../lib/auth'
+import { useSettings } from '../../lib/hooks'
+
+export default function ShopLayout() {
+  const { count } = useCart()
+  const { session, isStaff } = useAuth()
+  const { settings } = useSettings()
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-40 border-b border-brand-100 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
+          <Link to="/" className="flex items-center gap-2" aria-label="Accueil BENDO BIO">
+            <img src="/logo.jpg" alt="" className="h-11 w-11 rounded-full" />
+            <span className="font-display text-xl text-brand-700">Bendo Bio</span>
+          </Link>
+          <nav className="ml-4 hidden gap-1 md:flex">
+            <NavLink to="/catalogue" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-gray-700 hover:bg-gray-50'}`}>Catalogue</NavLink>
+            <NavLink to="/suivi" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-gray-700 hover:bg-gray-50'}`}>Suivre une commande</NavLink>
+          </nav>
+          <div className="ml-auto flex items-center gap-1">
+            <Link to="/catalogue" className="rounded-xl p-2.5 text-brand-800 hover:bg-brand-50 md:hidden" aria-label="Rechercher"><Search className="h-5 w-5" /></Link>
+            {isStaff && <Link to="/admin" className="flex items-center gap-1 rounded-xl bg-brand-800 px-3 py-2 text-sm font-semibold text-white" title="Espace gestion"><LayoutDashboard className="h-4 w-4" /><span className="hidden sm:inline">Gestion</span></Link>}
+            <Link to={session ? '/compte' : '/connexion'} className="rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label="Mon compte"><User className="h-5 w-5" /></Link>
+            <Link to="/panier" className="relative rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label={`Panier (${count} article(s))`}>
+              <ShoppingBasket className="h-6 w-6" />
+              {count > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-tomato px-1 text-xs font-bold text-white">{count}</span>}
+            </Link>
+          </div>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5"><Outlet /></main>
+      <footer className="mt-10 bg-brand-900 text-brand-100">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3">
+          <div>
+            <div className="font-display text-2xl text-white">Bendo Bio</div>
+            <p className="mt-2 text-brand-200">Produits frais et bio, livrés chez vous ou à retirer sur créneau.</p>
+          </div>
+          <div>
+            <div className="font-semibold text-white">Contact</div>
+            <p className="mt-2">{settings?.contact_email}<br />{settings?.contact_phone}</p>
+          </div>
+          <div className="flex flex-col gap-1">
+            <Link to="/legal/mentions" className="hover:underline">Mentions légales</Link>
+            <Link to="/legal/cgv" className="hover:underline">Conditions générales de vente</Link>
+            <Link to="/legal/confidentialite" className="hover:underline">Politique de confidentialité</Link>
+            <Link to="/connexion?staff=1" className="mt-2 text-brand-300 hover:underline">Accès personnel</Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  )
+}
