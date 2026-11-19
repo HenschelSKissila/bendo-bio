@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, Navigate, Link, useNavigate } from 'react-router-dom'
 import { MessageCircle, Sun, ClipboardList, Package, Boxes, Users, CalendarClock, Bell, BarChart3, Settings, ShieldCheck, MapPin, History, Store, LogOut, ScanLine } from 'lucide-react'
 import { useAuth } from '../../lib/auth'
@@ -7,7 +7,8 @@ import ConnectionDot from '../../components/ConnectionDot'
 import { StaffBadgesProvider, useStaffBadges, NavBadges, type StaffBadges } from '../../lib/staffBadges'
 import PushPrompt from '../../components/PushPrompt'
 import ThemeToggle from '../../components/ThemeToggle'
-import { pushState } from '../../lib/push'
+import { pushState, showLocal } from '../../lib/push'
+import { playChime } from '../../lib/chime'
 import { Spinner } from '../../components/ui'
 
 const NAV = [
@@ -26,6 +27,16 @@ const NAV = [
   { to: '/admin/journal', label: "Journal d'audit", icon: History, admin: true },
   { to: '/admin/parametres', label: 'Paramètres', icon: Settings },
 ]
+
+interface StaffNotif { id: number; event: string; subject: string | null; body: string | null; order_id: string | null }
+/** Page à ouvrir pour chaque type de notification de l'équipe. */
+function staffUrl(n: StaffNotif) {
+  if (n.event === 'customer_message') return '/admin/messagerie'
+  if (n.event === 'new_customer') return '/admin/clients'
+  if (n.event === 'role_request') return '/admin/utilisateurs'
+  if (n.order_id) return `/admin/commandes/${n.order_id}`
+  return '/admin/alertes'
+}
 
 type Badge = { n: number; tone: 'new' | 'todo' | 'critical'; title: string }
 function badgesFor(to: string, b: StaffBadges | null): Badge[] {
@@ -55,28 +66,41 @@ function AdminShell() {
   const { loading, session, isStaff, isAdmin, isCourier, profile, signOut } = useAuth()
   const nav = useNavigate()
   const { b: badges, reload: reloadBadges } = useStaffBadges()
-  const [toast, setToast] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ text: string; body: string | null; url: string } | null>(null)
   const [askPush, setAskPush] = useState(() => {
     try { return ['default', 'ios_needs_install'].includes(pushState()) && localStorage.getItem('bendo-push-dismissed') !== '1' } catch { return false }
   })
 
-  // notification instantanée d'une nouvelle commande
+  // Toutes les notifications de l'équipe (commandes, messages, alertes, livraisons, paiements, inscriptions) :
+  // bandeau + carillon + vibration ; notification système si l'application est en arrière-plan.
+  const lastStaffId = useRef(0)
   useEffect(() => {
     if (!isStaff) return
-    const ch = supabase.channel('new-orders').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, p => {
-      const n = (p.new as { order_number?: string }).order_number
-      setToast(`Nouvelle commande ${n ?? ''}`)
-      try { navigator.vibrate?.(200) } catch { /* ignore */ }
-      setTimeout(() => setToast(null), 8000)
+    let alive = true
+    const arrive = (n: StaffNotif) => {
+      if (n.id <= lastStaffId.current) return
+      lastStaffId.current = n.id
+      setToast({ text: n.subject ?? 'Notification', body: n.body, url: staffUrl(n) })
+      setTimeout(() => setToast(t => (t?.text === n.subject ? null : t)), 10000)
+      const urgent = ['new_order', 'customer_message', 'role_request'].includes(n.event) || /critique|Échec|bloqué/i.test(`${n.subject} ${n.body}`)
+      playChime(urgent)
+      if (document.visibilityState === 'hidden') showLocal(n.subject ?? 'BENDO BIO', n.body ?? '', staffUrl(n))
       reloadBadges()
-    }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, p => {
-      const r = p.new as { full_name?: string; requested_role?: string | null }
-      setToast(r.requested_role ? `Demande d'accès ${r.requested_role === 'courier' ? 'livreur' : 'gestionnaire'} : ${r.full_name ?? ''}` : `Nouveau client inscrit : ${r.full_name ?? ''}`)
-      setTimeout(() => setToast(null), 8000)
-      reloadBadges()
-    }).subscribe()
-    return () => { supabase.removeChannel(ch) }
-  }, [isStaff])
+    }
+    // point de départ : la dernière notification existante (on ne rejoue pas l'historique)
+    supabase.from('notifications').select('id').eq('channel', 'dashboard').order('id', { ascending: false }).limit(1)
+      .then(({ data }) => { if (alive) lastStaffId.current = Math.max(lastStaffId.current, data?.[0]?.id ?? 0) })
+    const ch = supabase.channel('staff-notifs').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: 'channel=eq.dashboard' },
+      p => arrive(p.new as StaffNotif)).subscribe()
+    // filet de sécurité si le temps réel est coupé
+    const poll = setInterval(async () => {
+      if (document.visibilityState !== 'visible' || !lastStaffId.current) return
+      const { data } = await supabase.from('notifications').select('id, event, subject, body, order_id').eq('channel', 'dashboard')
+        .gt('id', lastStaffId.current).order('id').limit(20)
+      for (const n of (data as StaffNotif[]) ?? []) arrive(n)
+    }, 30000)
+    return () => { alive = false; supabase.removeChannel(ch); clearInterval(poll) }
+  }, [isStaff]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <Spinner />
   if (!session) return <Navigate to="/connexion?staff=1&next=/admin" />
@@ -134,7 +158,9 @@ function AdminShell() {
         )}
         <Outlet />
       </main>
-      {toast && <button onClick={() => { setToast(null); nav(toast.startsWith('Nouveau client') ? '/admin/clients' : toast.startsWith('Demande') ? '/admin/utilisateurs' : '/admin/commandes') }} className="fixed bottom-4 right-4 z-50 rounded-2xl bg-brand-800 px-5 py-3 font-semibold text-white shadow-xl print:hidden">{toast.startsWith('Nouvelle commande') ? '🛒' : '👤'} {toast}</button>}
+      {toast && <button onClick={() => { const u = toast.url; setToast(null); nav(u) }} className="fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl bg-brand-800 px-5 py-3 text-left text-white shadow-xl print:hidden">
+        <div className="font-semibold">{toast.text}</div>{toast.body && <div className="text-sm text-brand-100">{toast.body}</div>}
+      </button>}
     </div>
   )
 }

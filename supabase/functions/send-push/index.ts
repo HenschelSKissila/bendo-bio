@@ -39,14 +39,18 @@ Deno.serve(async (req) => {
     const { data: o } = await db.from('orders').select('order_number').eq('id', record.order_id).maybeSingle()
     url = `/suivi?n=${o?.order_number ?? ''}`
   }
-  const payload = JSON.stringify({ title: record.subject ?? 'BENDO BIO', body: record.body ?? '', url, tag: record.order_id ?? record.event })
+  // urgente = reste affichée jusqu'à ouverture (nouvelle livraison pour un livreur, commande/message pour l'équipe, code de livraison)
+  const urgent = record.event.startsWith('courier_') || ['new_order', 'customer_message', 'status_out_for_delivery', 'nearby', 'role_request'].includes(record.event)
+    || (record.channel === 'dashboard' && /critique|Échec|bloqué/i.test(`${record.subject} ${record.body}`))
+  const payload = JSON.stringify({ title: record.subject ?? 'BENDO BIO', body: record.body ?? '', url, tag: `${record.order_id ?? record.event}-${record.id}`, urgent })
   let sent = 0, removed = 0
   const seen = new Set<string>()
   for (const s of subs) {
     if (seen.has(s.endpoint)) continue
     seen.add(s.endpoint)
     try {
-      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 86400 })
+      // urgency « high » : réveille le téléphone même en économie d'énergie (comme une messagerie) ; conservée 24 h si le téléphone est éteint
+      await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 86400, urgency: 'high' })
       sent++
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode

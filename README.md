@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.11)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.12)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -41,6 +41,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
   12. `supabase/migrations/012_produits_illustrations.sql` — nouveaux légumes/fruits + illustrations produits et rayons
   13. `supabase/migrations/013_boissons.sql` — rayon boissons naturelles (bissap, tangawisi, yaourts)
   14. `supabase/migrations/014_suppression_produits.sql` — suppression / archivage des produits, suppression des rayons vides
+  15. `supabase/migrations/015_notifications_completes.sql` — notifications équipe (livraisons, paiements) + test de notification
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -227,3 +228,17 @@ Gestion > Produits : bouton 🗑️ sur chaque ligne (ou « Supprimer » dans la
 vendu est supprimé définitivement ; un produit avec historique est archivé (retiré de la boutique et des
 listes, traçabilité des lots et factures conservées) et peut être restauré via « Voir les produits supprimés ».
 Les rayons vides se suppriment dans Produits > Catégories. Chaque suppression est inscrite au journal d'audit.
+
+## 18. Notifications qui sonnent (comme Gmail / WhatsApp)
+
+- Chaque événement crée une notification envoyée en **Web Push** par le système du téléphone (Google / Apple) :
+  elle s'affiche et **sonne même application fermée**, sans que le téléphone ait à interroger le serveur.
+- Destinataires vérifiés (`supabase/tests/push_matrice.sql`) : client (étapes, code de livraison, paiement,
+  messages, promotions), livreur (nouvelle livraison, commande prête, annulation), équipe (commandes, messages,
+  inscriptions, alertes, prise en charge/départ/livraison/échec, paiements).
+- Urgentes (livreur, nouvelle commande, message client, départ en livraison) : restent affichées jusqu'à ouverture.
+- Application ouverte : bandeau + carillon + vibration ; vérification de secours toutes les 30 s si le temps
+  réel est coupé ; réabonnement automatique si l'abonnement push expire.
+- Bouton **« 🔔 Tester »** (compte client, espace livreur, Paramètres) : envoie une vraie notification via le serveur.
+- ⚠️ Après cette mise à jour, **redéployer la fonction `send-push`** (Supabase > Edge Functions) avec le
+  nouveau fichier `supabase/functions/send-push/index.ts`.

@@ -43,16 +43,27 @@ export async function enablePush(guest?: { orderNumber: string; contact: string 
   if (error) throw new Error(friendlyError(error.message))
 }
 
-/** Rattache l'abonnement existant de ce téléphone au compte qui vient de se connecter. */
+/** Rattache l'abonnement de ce téléphone au compte connecté ; le recrée s'il a expiré (permission déjà donnée). */
 export async function relinkPush() {
   try {
     if (pushState() !== 'granted') return
     const reg = await navigator.serviceWorker.ready
-    const sub = await reg.pushManager.getSubscription()
-    if (!sub) return
+    let sub = await reg.pushManager.getSubscription()
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) })
     const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
     await supabase.rpc('save_push_subscription', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_user_agent: navigator.userAgent })
   } catch { /* silencieux */ }
+}
+
+/** Envoie une notification de test à ses propres appareils (passe par le serveur, comme une vraie). */
+export async function sendTestNotification() {
+  const { error } = await supabase.rpc('send_test_notification')
+  if (error) throw new Error(friendlyError(error.message))
+}
+
+// le service worker a renouvelé l'abonnement : on l'enregistre de nouveau
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data?.type === 'BENDO_PUSH_RESUBSCRIBED') relinkPush() })
 }
 
 /** Déconnexion : cet appareil ne reçoit plus les notifications du compte. */

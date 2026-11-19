@@ -22,7 +22,7 @@ const slotTxt = (a: string | null, b: string | null) => a ? `${new Date(a).toLoc
 
 export default function Courier() {
   const { session, profile, loading, signOut, isStaff } = useAuth()
-  const { list: notifs } = useNotifications()
+  const { list: notifs, toast, dismissToast } = useNotifications()
   const [b, setB] = useState<Board | null>(null)
   const [tab, setTab] = useState<'avail' | 'mine' | 'hist'>('mine')
   const [err, setErr] = useState<string | null>(null)
@@ -91,6 +91,11 @@ export default function Courier() {
         </div>
       </header>
 
+      {toast && (
+        <button onClick={() => { dismissToast(); load() }} className="fixed inset-x-3 top-24 z-50 mx-auto block max-w-md rounded-2xl border-2 border-carrot bg-white p-4 text-left shadow-2xl">
+          <div className="font-bold text-brand-900">{toast.subject}</div>{toast.body && <div className="text-sm text-gray-700">{toast.body}</div>}
+        </button>
+      )}
       <main className="mx-auto max-w-2xl space-y-3 p-3">
         <PushPrompt compact courier />
         <ErrorBox>{err}</ErrorBox>
