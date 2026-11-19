@@ -16,7 +16,7 @@ export interface Product {
   image_url: string | null; unit: Unit; packaging: string | null; price: number; tax_rate: number; variable_weight: boolean
   min_qty: number; qty_step: number; ingredients: string | null; allergens: string | null; conservation: string | null
   origin: string | null; organic: boolean; featured: boolean; status: 'active' | 'hidden' | 'unavailable'
-  low_threshold: number; critical_threshold: number; expiry_alert_days: number | null; created_at?: string
+  low_threshold: number; critical_threshold: number; expiry_alert_days: number | null; created_at?: string; archived_at?: string | null
 }
 export interface Stock { product_id: string; physical: number; sellable: number; reserved: number; available: number }
 export interface Lot {

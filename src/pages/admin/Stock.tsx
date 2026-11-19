@@ -139,7 +139,7 @@ export function Reception({ products, onDone, presetProduct }: { products: Produ
       <form onSubmit={submit} className="space-y-3">
         <h2 className="flex items-center gap-2 font-bold"><PackagePlus className="h-5 w-5" />Entrée de stock (nouveau lot)</h2>
         <div className="grid gap-3 sm:grid-cols-3">
-          <Field label="Produit" required><Select required value={f.product} onChange={e => setF({ ...f, product: e.target.value })}><option value="">— choisir —</option>{products.map(x => <option key={x.id} value={x.id}>{x.name}{x.packaging ? ` (${x.packaging})` : ''}</option>)}</Select></Field>
+          <Field label="Produit" required><Select required value={f.product} onChange={e => setF({ ...f, product: e.target.value })}><option value="">— choisir —</option>{products.filter(x => !x.archived_at).map(x => <option key={x.id} value={x.id}>{x.name}{x.packaging ? ` (${x.packaging})` : ''}</option>)}</Select></Field>
           <Field label={`Quantité reçue${p ? ` (${UNIT_LABEL[p.unit]})` : ''}`} required><Input required type="number" step="0.001" min="0.001" value={f.qty} onChange={e => setF({ ...f, qty: e.target.value })} /></Field>
           <Field label="Date de réception"><Input type="date" value={f.received} onChange={e => setF({ ...f, received: e.target.value })} /></Field>
           <Field label="Date limite" hint="Pour les produits frais : DLC. Laisser vide si non applicable."><Input type="date" value={f.expiry} onChange={e => setF({ ...f, expiry: e.target.value })} /></Field>

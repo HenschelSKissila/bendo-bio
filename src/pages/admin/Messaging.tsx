@@ -119,7 +119,7 @@ export default function Messaging() {
             <Field label="Titre" required><Input value={a.title} maxLength={120} onChange={e => setA({ ...a, title: e.target.value })} placeholder="ex. Promo tomates 🍅" /></Field>
             <Field label="Message" required><Textarea value={a.body} maxLength={1000} onChange={e => setA({ ...a, body: e.target.value })} placeholder="ex. Nous avons de la bonne tomate pour le saka-saka : -20 % jusqu'à dimanche !" /></Field>
             <div className="grid gap-2 sm:grid-cols-3">
-              <Field label="Produit lié"><Select value={a.product} onChange={e => setA({ ...a, product: e.target.value })}><option value="">— aucun —</option>{products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+              <Field label="Produit lié"><Select value={a.product} onChange={e => setA({ ...a, product: e.target.value })}><option value="">— aucun —</option>{products.filter(p => !p.archived_at).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
               <Field label="Destinataires"><Select value={a.audience} onChange={e => setA({ ...a, audience: e.target.value })}>
                 <option value="marketing">Clients ayant accepté les offres</option><option value="all">Tous les clients (information de service)</option></Select></Field>
               <Field label="Visible (jours)"><Input type="number" min="1" max="90" value={a.days} onChange={e => setA({ ...a, days: e.target.value })} /></Field>

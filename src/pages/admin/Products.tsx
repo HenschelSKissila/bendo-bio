@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Plus, Upload } from 'lucide-react'
-import { supabase, errMsg } from '../../lib/supabase'
+import { Plus, Upload, Trash2, RotateCcw, Archive } from 'lucide-react'
+import { supabase, rpc, errMsg } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { useRealtime } from '../../lib/hooks'
 import { money, num, UNIT_LABEL } from '../../lib/format'
@@ -30,6 +30,9 @@ export default function Products() {
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('')
   const [noPhoto, setNoPhoto] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
+  const [toDelete, setToDelete] = useState<Product | null>(null)
+  const [ok, setOk] = useState<string | null>(null)
   const [edit, setEdit] = useState<Partial<Product> | null>(null)
   const [catModal, setCatModal] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -43,8 +46,20 @@ export default function Products() {
   }, [])
   useEffect(() => { load() }, [load])
   useRealtime(['products', 'lots'], load)
-  const list = useMemo(() => (products ?? []).filter(p => (!cat || p.category_id === cat) && (!noPhoto || isPlaceholderImage(p.image_url))
-    && (!q || `${p.name} ${p.sku} ${p.barcode ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [products, q, cat, noPhoto])
+  const archivedCount = (products ?? []).filter(p => p.archived_at).length
+  const list = useMemo(() => (products ?? []).filter(p => (showArchived ? !!p.archived_at : !p.archived_at) && (!cat || p.category_id === cat) && (!noPhoto || isPlaceholderImage(p.image_url))
+    && (!q || `${p.name} ${p.sku} ${p.barcode ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [products, q, cat, noPhoto, showArchived])
+
+  async function confirmDelete() {
+    if (!toDelete) return
+    setErr(null); setOk(null); setBusy(true)
+    try {
+      const r = await rpc<{ result: 'deleted' | 'archived'; name: string; stock_left?: number }>('delete_product', { p_product: toDelete.id })
+      setOk(r.result === 'deleted' ? `« ${r.name} » a été supprimé définitivement.`
+        : `« ${r.name} » a été retiré de la boutique et archivé (son historique de stock et de ventes est conservé).${r.stock_left ? ` Il restait ${num(r.stock_left)} en stock : pensez à enregistrer une sortie (perte, don…) dans Stock.` : ''}`)
+      setToDelete(null); setEdit(null); load()
+    } catch (e) { setErr(errMsg(e)) } finally { setBusy(false) }
+  }
 
   async function save() {
     if (!edit) return
@@ -85,12 +100,15 @@ export default function Products() {
         <Input type="search" placeholder="Nom, SKU ou code-barres" value={q} onChange={e => setQ(e.target.value)} />
         <Select value={cat} onChange={e => setCat(e.target.value)}><option value="">Toutes catégories</option>{cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
         <label className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 text-sm"><input type="checkbox" className="accent-brand-700" checked={noPhoto} onChange={e => setNoPhoto(e.target.checked)} />
-          📷 Sans vraie photo ({(products ?? []).filter(p => isPlaceholderImage(p.image_url)).length})</label>
+          📷 Sans vraie photo ({(products ?? []).filter(p => !p.archived_at && isPlaceholderImage(p.image_url)).length})</label>
+        {isAdmin && archivedCount > 0 && <label className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm sm:col-span-3"><input type="checkbox" className="accent-brand-700" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} />
+          <Archive className="h-4 w-4" />Voir les produits supprimés / archivés ({archivedCount})</label>}
       </Card>
+      {ok && <div role="status" className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">{ok}</div>}
       {!products ? <Spinner /> : list.length === 0 ? <Empty>Aucun produit.</Empty> : (
         <Card className="overflow-x-auto !p-0">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500"><tr><th className="p-3">Produit</th><th>Prix</th><th>Physique</th><th>Réservé</th><th>Disponible</th><th>Seuils</th><th>Statut</th></tr></thead>
+            <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500"><tr><th className="p-3">Produit</th><th>Prix</th><th>Physique</th><th>Réservé</th><th>Disponible</th><th>Seuils</th><th>Statut</th>{isAdmin && <th className="pr-3 text-right">Actions</th>}</tr></thead>
             <tbody className="divide-y">
               {list.map(p => { const s = stock[p.id]; return (
                 <tr key={p.id} className="cursor-pointer hover:bg-brand-50/40" onClick={() => { setErr(null); setEdit(p) }}>
@@ -100,7 +118,12 @@ export default function Products() {
                   <td className="tabular-nums">{num(s?.reserved)}</td>
                   <td><Badge cls={stockTone(p, s)}>{num(s?.available)} {UNIT_LABEL[p.unit]}</Badge></td>
                   <td className="text-xs text-gray-600">bas {num(p.low_threshold)} · crit. {num(p.critical_threshold)}</td>
-                  <td><Badge cls={p.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}>{p.status === 'active' ? 'Actif' : p.status === 'hidden' ? 'Masqué' : 'Indisponible'}</Badge></td>
+                  <td><Badge cls={p.archived_at ? 'bg-red-100 text-red-800' : p.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-200 text-gray-700'}>{p.archived_at ? 'Archivé' : p.status === 'active' ? 'Actif' : p.status === 'hidden' ? 'Masqué' : 'Indisponible'}</Badge></td>
+                  {isAdmin && <td className="pr-3 text-right" onClick={e => e.stopPropagation()}>
+                    {p.archived_at
+                      ? <Button variant="secondary" className="!px-3 !py-1.5" onClick={async () => { try { await rpc('restore_product', { p_product: p.id }); setOk(`« ${p.name} » est de nouveau en vente.`); load() } catch (e) { setErr(errMsg(e)) } }}><RotateCcw className="h-4 w-4" />Restaurer</Button>
+                      : <button className="rounded-lg p-2 text-gray-500 hover:bg-red-50 hover:text-tomato" aria-label={`Supprimer ${p.name}`} title="Supprimer" onClick={() => { setErr(null); setToDelete(p) }}><Trash2 className="h-5 w-5" /></button>}
+                  </td>}
                 </tr>) })}
             </tbody>
           </table>
@@ -145,31 +168,53 @@ export default function Products() {
             <Input placeholder="ou URL de l'image" value={edit.image_url ?? ''} onChange={e => set('image_url', e.target.value)} />
           </div>
           <ErrorBox>{err}</ErrorBox>
-          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setEdit(null)}>Annuler</Button><Button loading={busy} onClick={save}>Enregistrer</Button></div>
+          <div className="flex flex-wrap justify-end gap-2">
+            {isAdmin && edit.id && !edit.archived_at && <Button variant="danger" className="mr-auto" onClick={() => setToDelete(edit as Product)}><Trash2 className="h-4 w-4" />Supprimer</Button>}
+            <Button variant="secondary" onClick={() => setEdit(null)}>Annuler</Button><Button loading={busy} onClick={save}>Enregistrer</Button>
+          </div>
         </div>}
       </Modal>
-      <CategoriesModal open={catModal} onClose={() => { setCatModal(false); load() }} cats={cats} />
+      <Modal open={!!toDelete} onClose={() => setToDelete(null)} title="Supprimer ce produit ?">
+        {toDelete && <div className="space-y-3 text-sm">
+          <div className="flex items-center gap-3"><ProductImage p={toDelete} className="h-14 w-14 flex-none rounded-lg text-2xl" /><div className="min-w-0"><div className="font-semibold">{toDelete.name}</div><div className="text-xs text-gray-500">{toDelete.sku}</div></div></div>
+          <ul className="list-disc space-y-1 pl-5 text-gray-700">
+            <li>S'il n'a <strong>jamais été reçu ni vendu</strong>, il est <strong>supprimé définitivement</strong>.</li>
+            <li>S'il a un <strong>historique</strong> (stock, ventes), il est <strong>retiré de la boutique et archivé</strong> : la traçabilité des lots et les factures restent intactes, et vous pourrez le restaurer.</li>
+          </ul>
+          {Number(stock[toDelete.id]?.physical ?? 0) > 0 && <p className="rounded-lg bg-amber-50 p-2 text-amber-900">⚠️ Il reste {num(stock[toDelete.id]?.physical)} {UNIT_LABEL[toDelete.unit]} en stock pour ce produit.</p>}
+          <ErrorBox>{err}</ErrorBox>
+          <div className="flex justify-end gap-2"><Button variant="secondary" onClick={() => setToDelete(null)}>Annuler</Button><Button variant="danger" loading={busy} onClick={confirmDelete}><Trash2 className="h-4 w-4" />Supprimer</Button></div>
+        </div>}
+      </Modal>
+      <CategoriesModal open={catModal} onClose={() => { setCatModal(false); load() }} cats={cats} isAdmin={isAdmin} />
     </div>
   )
 }
 
-function CategoriesModal({ open, onClose, cats }: { open: boolean; onClose: () => void; cats: Category[] }) {
+function CategoriesModal({ open, onClose, cats, isAdmin }: { open: boolean; onClose: () => void; cats: Category[]; isAdmin: boolean }) {
   const [rows, setRows] = useState<Partial<Category>[]>([])
   const [err, setErr] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
   useEffect(() => { if (open) setRows(cats) }, [open, cats])
   async function saveRow(c: Partial<Category>) {
     setErr(null)
     const slug = (c.slug || c.name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
     const payload = { name: c.name, slug, icon: c.icon || '🥬', sort_order: c.sort_order ?? 0, expiry_alert_days: c.expiry_alert_days || null, active: c.active ?? true, image_url: c.image_url ?? null }
     const r = c.id ? await supabase.from('categories').update(payload).eq('id', c.id) : await supabase.from('categories').insert(payload)
-    if (r.error) setErr(r.error.message)
+    if (r.error) setErr(r.error.message); else setMsg(`Rayon « ${c.name} » enregistré.`)
+  }
+  async function removeRow(c: Partial<Category>, i: number) {
+    setErr(null); setMsg(null)
+    if (!c.id) { setRows(r => r.filter((_, j) => j !== i)); return }
+    if (!confirm(`Supprimer le rayon « ${c.name} » ?`)) return
+    try { await rpc('delete_category', { p_category: c.id }); setRows(r => r.filter((_, j) => j !== i)); setMsg(`Rayon « ${c.name} » supprimé.`) } catch (e) { setErr(errMsg(e)) }
   }
   return (
     <Modal open={open} onClose={onClose} title="Catégories" wide>
       <div className="space-y-2">
         {rows.map((c, i) => (
-          <div key={c.id ?? i} className="grid grid-cols-[3rem_3rem_1fr_5rem_6rem_auto] items-center gap-2">
-            <label className="relative h-12 w-12 cursor-pointer overflow-hidden rounded-lg border border-gray-200 bg-gray-50" title="Photo du rayon">
+          <div key={c.id ?? i} className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 p-2">
+            <label className="relative h-12 w-12 flex-none cursor-pointer overflow-hidden rounded-lg border border-gray-200 bg-gray-50" title="Photo du rayon">
               {c.image_url ? <img src={c.image_url} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-xl">📷</span>}
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async e => {
                 const f = e.target.files?.[0]; if (!f) return
@@ -183,15 +228,17 @@ function CategoriesModal({ open, onClose, cats }: { open: boolean; onClose: () =
                 } catch (er) { setErr(errMsg(er)) }
               }} />
             </label>
-            <Input value={c.icon ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))} aria-label="Icône" />
-            <Input value={c.name ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} aria-label="Nom" />
-            <Input type="number" value={c.sort_order ?? 0} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, sort_order: parseInt(e.target.value) } : x))} aria-label="Ordre" />
-            <Input type="number" placeholder="J-x DLC" value={c.expiry_alert_days ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, expiry_alert_days: e.target.value ? parseInt(e.target.value) : null } : x))} aria-label="Alerte DLC" />
-            <Button variant="secondary" onClick={() => saveRow(c)}>OK</Button>
+            <Input className="!w-14 flex-none text-center" value={c.icon ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))} aria-label="Icône" />
+            <Input className="min-w-[9rem] flex-1" value={c.name ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} aria-label="Nom" placeholder="Nom du rayon" />
+            <Input className="!w-20 flex-none" type="number" value={c.sort_order ?? 0} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, sort_order: parseInt(e.target.value) } : x))} aria-label="Ordre" title="Ordre d'affichage" />
+            <Input className="!w-24 flex-none" type="number" placeholder="J-x DLC" value={c.expiry_alert_days ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, expiry_alert_days: e.target.value ? parseInt(e.target.value) : null } : x))} aria-label="Alerte DLC" title="Alerte DLC (jours avant)" />
+            <Button variant="secondary" className="flex-none" onClick={() => saveRow(c)}>OK</Button>
+            {isAdmin && <button className="flex-none rounded-lg p-2 text-gray-500 hover:bg-red-50 hover:text-tomato" aria-label={`Supprimer le rayon ${c.name}`} title="Supprimer le rayon" onClick={() => removeRow(c, i)}><Trash2 className="h-5 w-5" /></button>}
           </div>
         ))}
         <Button variant="ghost" onClick={() => setRows(r => [...r, { name: '', icon: '🥬', sort_order: r.length + 1 }])}><Plus className="h-4 w-4" />Ajouter</Button>
-        <p className="text-xs text-gray-500">Colonnes : photo du rayon (touchez pour en prendre/choisir une), icône, nom, ordre d'affichage, délai d'alerte DLC (jours). Cliquez « OK » pour enregistrer la ligne.</p>
+        {msg && <p role="status" className="text-sm font-medium text-brand-700">{msg}</p>}
+        <p className="text-xs text-gray-500">Un rayon ne peut être supprimé que s'il ne contient plus de produit actif. Colonnes : photo du rayon (touchez pour en prendre/choisir une), icône, nom, ordre d'affichage, délai d'alerte DLC (jours). Cliquez « OK » pour enregistrer la ligne.</p>
         <ErrorBox>{err}</ErrorBox>
       </div>
     </Modal>

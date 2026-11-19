@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.10)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.11)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -40,6 +40,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
   11. `supabase/migrations/011_volaille.sql` — rayons volaille bio (poulets, canards, poussins, pondeuses)
   12. `supabase/migrations/012_produits_illustrations.sql` — nouveaux légumes/fruits + illustrations produits et rayons
   13. `supabase/migrations/013_boissons.sql` — rayon boissons naturelles (bissap, tangawisi, yaourts)
+  14. `supabase/migrations/014_suppression_produits.sql` — suppression / archivage des produits, suppression des rayons vides
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -219,3 +220,10 @@ Gestion > Produits : filtre « 📷 Sans vraie photo » et étiquette « Photo �
 encore qu'une illustration. Dans la fiche, « Prendre / choisir une photo » ouvre l'appareil photo du téléphone ;
 l'image est recadrée en carré et allégée automatiquement (1200 px, ~300 Ko). Même principe pour la photo de
 chaque rayon (Produits > Catégories). Mode nuit vérifié automatiquement sur les 29 écrans.
+
+## 17. Supprimer un produit ou un rayon (administrateur)
+
+Gestion > Produits : bouton 🗑️ sur chaque ligne (ou « Supprimer » dans la fiche). Un produit jamais reçu ni
+vendu est supprimé définitivement ; un produit avec historique est archivé (retiré de la boutique et des
+listes, traçabilité des lots et factures conservées) et peut être restauré via « Voir les produits supprimés ».
+Les rayons vides se suppriment dans Produits > Catégories. Chaque suppression est inscrite au journal d'audit.
