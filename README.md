@@ -21,6 +21,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
    2. `supabase/migrations/002_functions.sql` — règles métier
    3. `supabase/migrations/003_security_realtime.sql` — sécurité RLS, temps réel, stockage photos
    4. `supabase/migrations/004_seed_and_cron.sql` — catégories, 9 produits d'exemple, zone, créneaux, tâches automatiques
+   5. `supabase/migrations/005_grants.sql` — droits d'accès de l'API (**obligatoire** sur les projets Supabase récents, sinon « permission denied for table »)
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
