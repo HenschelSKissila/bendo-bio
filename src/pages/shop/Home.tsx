@@ -19,7 +19,7 @@ export default function Home() {
             <Link to="/suivi" className="rounded-xl border border-white/60 px-5 py-3 font-semibold text-white hover:bg-white/10">Suivre ma commande</Link>
           </div>
         </div>
-        <img src="/logo.jpg" alt="" className="absolute -right-10 -top-6 hidden h-80 w-80 rounded-full opacity-90 shadow-2xl md:block" />
+        <img src="/logo.png" alt="" className="absolute right-6 top-1/2 hidden h-72 w-72 -translate-y-1/2 object-contain drop-shadow-2xl md:block" />
       </section>
 
       <ErrorBox>{error && `Impossible de charger le catalogue (${error}). Vérifiez la configuration de la base dans Gestion > Paramètres.`}</ErrorBox>

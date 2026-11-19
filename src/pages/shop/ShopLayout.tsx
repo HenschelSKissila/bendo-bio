@@ -13,7 +13,7 @@ export default function ShopLayout() {
       <header className="sticky top-0 z-40 border-b border-brand-100 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
           <Link to="/" className="flex items-center gap-2" aria-label="Accueil BENDO BIO">
-            <img src="/logo.jpg" alt="" className="h-11 w-11 rounded-full" />
+            <img src="/logo.png" alt="" className="h-11 w-11" />
             <span className="font-display text-xl text-brand-700">Bendo Bio</span>
           </Link>
           <nav className="ml-4 hidden gap-1 md:flex">

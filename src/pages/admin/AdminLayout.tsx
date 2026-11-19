@@ -68,7 +68,7 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-50 lg:flex">
       <aside className="hidden w-60 flex-none flex-col border-r border-gray-200 bg-white p-3 lg:flex print:hidden">
-        <Link to="/admin" className="mb-4 flex items-center gap-2 px-2"><img src="/logo.jpg" className="h-10 w-10 rounded-full" alt="" /><div><div className="font-display text-lg text-brand-700">Bendo Bio</div><div className="text-[11px] text-gray-500">Gestion</div></div></Link>
+        <Link to="/admin" className="mb-4 flex items-center gap-2 px-2"><img src="/logo.png" className="h-10 w-10" alt="" /><div><div className="font-display text-lg text-brand-700">Bendo Bio</div><div className="text-[11px] text-gray-500">Gestion</div></div></Link>
         <nav className="flex flex-1 flex-col gap-0.5">{items.map(n => link(n))}</nav>
         <div className="mt-3 space-y-2 border-t pt-3 text-xs">
           <ConnectionDot />
@@ -79,7 +79,7 @@ export default function AdminLayout() {
       </aside>
       <div className="sticky top-0 z-30 border-b bg-white lg:hidden print:hidden">
         <div className="flex items-center justify-between px-3 py-2">
-          <Link to="/admin" className="flex items-center gap-2"><img src="/logo.jpg" className="h-8 w-8 rounded-full" alt="" /><span className="font-display text-brand-700">Bendo Bio</span></Link>
+          <Link to="/admin" className="flex items-center gap-2"><img src="/logo.png" className="h-8 w-8" alt="" /><span className="font-display text-brand-700">Bendo Bio</span></Link>
           <div className="flex items-center gap-3"><ConnectionDot compact /><Link to="/" aria-label="Boutique"><Store className="h-5 w-5 text-brand-700" /></Link>
             <button aria-label="Déconnexion" onClick={async () => { await signOut(); nav('/') }}><LogOut className="h-5 w-5 text-gray-600" /></button></div>
         </div>

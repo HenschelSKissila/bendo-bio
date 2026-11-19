@@ -41,7 +41,7 @@ export default function Login() {
     <div className="mx-auto max-w-md">
       <Card>
         <div className="mb-4 text-center">
-          <img src="/logo.jpg" alt="" className="mx-auto h-20 w-20 rounded-full" />
+          <img src="/logo.png" alt="" className="mx-auto h-20 w-20" />
           <h1 className="mt-2 text-xl font-bold text-brand-900">
             {mode === 'login' ? (staff ? 'Connexion personnel' : 'Connexion') : mode === 'signup' ? 'Créer un compte' : 'Mot de passe oublié'}
           </h1>
