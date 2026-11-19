@@ -4,7 +4,7 @@ import { ShieldCheck } from 'lucide-react'
 import { rpc, errMsg } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { fmtDay, daysUntil } from '../../lib/format'
-import { BRAND } from '../../lib/brand'
+import ContactLinks from '../../components/ContactLinks'
 import { Card, Spinner, ErrorBox, Badge } from '../../components/ui'
 
 interface LotPub { lot_number: string; received_at: string; expiry_date: string | null; expiry_kind: string | null; status: string; sellable: boolean
@@ -42,7 +42,7 @@ export default function LotInfo() {
             .map(([k, v]) => <div key={k} className="grid grid-cols-3 gap-2 py-2"><dt className="text-gray-600">{k}</dt><dd className="col-span-2">{v || '—'}</dd></div>)}
         </dl>
       </Card>
-      <p className="text-center text-sm text-gray-600">Une question sur ce produit ? {BRAND.phone} · {BRAND.email} · <a href={BRAND.facebook} target="_blank" rel="noreferrer" className="text-brand-700 underline">Facebook</a></p>
+      <Card><div className="text-sm font-semibold text-gray-700">Une question sur ce produit ?</div><ContactLinks /></Card>
       <div className="text-center"><Link to={`/produit/${l.product_id}`} className="font-semibold text-brand-700 underline">Commander ce produit</Link></div>
     </div>
   )

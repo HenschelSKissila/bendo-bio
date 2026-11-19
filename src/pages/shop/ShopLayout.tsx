@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useRealtime } from '../../lib/hooks'
 import { useNotifications } from '../../lib/notifications'
 import ThemeToggle from '../../components/ThemeToggle'
+import ContactLinks from '../../components/ContactLinks'
 import { useCart } from '../../lib/cart'
 import { useAuth } from '../../lib/auth'
 import { useSettings } from '../../lib/hooks'
@@ -93,13 +94,8 @@ export default function ShopLayout() {
           </div>
           <div>
             <div className="font-semibold text-white">Contact</div>
-            <p className="mt-2 space-y-1">
-              <a href={BRAND.phoneHref} className="block hover:underline">📞 {settings?.contact_phone || BRAND.phone}</a>
-              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="block hover:underline">💬 WhatsApp</a>
-              <a href={BRAND.facebook} target="_blank" rel="noreferrer" className="block hover:underline">📘 Facebook : /bendobio</a>
-              <a href={`mailto:${settings?.contact_email || BRAND.email}`} className="block hover:underline">✉️ {settings?.contact_email || BRAND.email}</a>
-              <span className="block">📍 {settings?.pickup_address || BRAND.address}, {BRAND.country}</span>
-            </p>
+            <ContactLinks phone={settings?.contact_phone || BRAND.phone} email={settings?.contact_email || BRAND.email}
+              address={`${settings?.pickup_address || BRAND.address}, ${BRAND.country}`} />
           </div>
           <div className="flex flex-col gap-1">
             <Link to="/legal/mentions" className="hover:underline">Mentions légales</Link>
