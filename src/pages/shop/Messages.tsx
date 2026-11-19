@@ -26,6 +26,8 @@ export default function Messages() {
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const end = useRef<HTMLDivElement>(null)
+  // fait défiler la conversation jusqu'au dernier message, sans faire bouger la page
+  const toBottom = () => { const box = end.current?.parentElement; if (box) box.scrollTop = box.scrollHeight }
   const uid = session?.user.id
 
   const load = useCallback(async () => {
@@ -39,7 +41,7 @@ export default function Messages() {
   }, [uid])
   useEffect(() => { load(); supabase.from('products').select('*').neq('status', 'hidden').order('name').then(({ data }) => setProducts((data as Product[]) ?? [])) }, [load])
   useRealtime(['messages', 'announcements'], load, !!uid)
-  useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs?.length])
+  useEffect(() => { toBottom() }, [msgs?.length])
 
   if (loading) return <Spinner />
   if (!session) return (

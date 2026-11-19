@@ -25,6 +25,8 @@ export default function Messaging() {
   const [ok, setOk] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const end = useRef<HTMLDivElement>(null)
+  // fait défiler la conversation jusqu'au dernier message, sans faire bouger la page
+  const toBottom = () => { const box = end.current?.parentElement; if (box) box.scrollTop = box.scrollHeight }
 
   const load = useCallback(async () => {
     const [m, an] = await Promise.all([
@@ -53,7 +55,7 @@ export default function Messaging() {
   const thread = (msgs ?? []).filter(m => m.customer_id === sel)
   useEffect(() => {
     if (!sel) return
-    end.current?.scrollIntoView()
+    toBottom()
     if (thread.some(m => !m.from_staff && !m.read_by_staff_at)) rpc('mark_messages_read', { p_customer: sel }).then(() => { load(); reloadBadges() }).catch(() => {})
   }, [sel, thread.length]) // eslint-disable-line react-hooks/exhaustive-deps
   const pname = (id: string | null) => products.find(p => p.id === id)?.name

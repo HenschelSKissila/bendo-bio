@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.9)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.10)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
