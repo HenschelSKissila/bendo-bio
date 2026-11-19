@@ -30,7 +30,7 @@ export default function Catalog() {
         {categories.map(c => (
           <button key={c.id} onClick={() => setSp({ cat: c.slug })}
             className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${cat === c.slug ? 'bg-brand-700 text-white' : 'bg-white text-brand-800 border border-brand-200'}`}>
-            {c.icon} {c.name}
+            {c.image_url ? <img src={c.image_url} alt="" className="mr-1 inline h-6 w-6 rounded-md align-middle" /> : `${c.icon} `}{c.name}
           </button>
         ))}
       </div>

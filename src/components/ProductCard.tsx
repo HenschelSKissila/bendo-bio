@@ -5,7 +5,7 @@ import type { Product, Stock } from '../lib/types'
 import { money, unitPrice, UNIT_LABEL, num } from '../lib/format'
 import { useCart } from '../lib/cart'
 import { Badge } from './ui'
-import { categoryIcons } from '../lib/hooks'
+import { categoryIcons, categoryImages } from '../lib/hooks'
 
 export function availabilityOf(p: Product, s?: Stock) {
   const av = Number(s?.available ?? 0)
@@ -15,8 +15,9 @@ export function availabilityOf(p: Product, s?: Stock) {
 }
 
 export function ProductImage({ p, className = '' }: { p: Product; className?: string }) {
-  return p.image_url
-    ? <img src={p.image_url} alt={p.name} loading="lazy" className={`object-cover ${className}`} />
+  const src = p.image_url || (p.category_id ? categoryImages[p.category_id] : undefined)
+  return src
+    ? <img src={src} alt={p.name} loading="lazy" className={`object-cover ${className}`} />
     : <div className={`flex items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 text-5xl ${className}`} aria-hidden>{(p.category_id && categoryIcons[p.category_id]) || '🥬'}</div>
 }
 

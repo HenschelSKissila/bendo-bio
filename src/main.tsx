@@ -14,8 +14,19 @@ if ('serviceWorker' in navigator) {
 
   const check = () => {
     if (!navigator.onLine) return
-    navigator.serviceWorker.getRegistration().then(reg => reg?.update()).catch(() => {})
+    navigator.serviceWorker.getRegistration().then(async reg => {
+      await reg?.update()
+      reg?.waiting?.postMessage({ type: 'SKIP_WAITING' })   // version en attente → activation immédiate
+    }).catch(() => {})
   }
+  // quand la nouvelle version prend la main, on recharge une seule fois la page (même adresse)
+  let reloaded = false
+  const hadController = !!navigator.serviceWorker.controller
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloaded) return
+    reloaded = true
+    window.location.reload()
+  })
   setInterval(check, 60_000)
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check() })
   window.addEventListener('focus', check)

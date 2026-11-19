@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.6)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.7)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -37,6 +37,8 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
    8. `supabase/migrations/008_livreurs.sql` — rôle livreur et demandes d'accès (à exécuter **séparément** du 007)
    9. `supabase/migrations/009_compteurs_menu.sql` — compteurs de nouveautés dans le menu de gestion
   10. `supabase/migrations/010_code_livraison_messagerie.sql` — code de livraison client + messagerie / promotions
+  11. `supabase/migrations/011_volaille.sql` — rayons volaille bio (poulets, canards, poussins, pondeuses)
+  12. `supabase/migrations/012_produits_illustrations.sql` — nouveaux légumes/fruits + illustrations produits et rayons
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -198,3 +200,14 @@ confirmer exceptionnellement sans code, avec un motif obligatoire enregistré.
 Bouton 🖥️/☀️/🌙 dans l'en-tête (boutique, gestion, espace livreur) et choix dans « Mon compte » et
 « Paramètres » : **Auto** (par défaut — suit le réglage clair/sombre du téléphone ou de l'ordinateur),
 **Clair** ou **Sombre**. Le choix est mémorisé sur l'appareil ; impressions et étiquettes restent claires.
+
+## 15. Volaille, illustrations et mises à jour automatiques
+
+- Rayons **Poulets bio**, **Canards & canetons**, **Poussins & pondeuses** (script 011) et nouveaux légumes/fruits
+  (script 012). Prix indicatifs en FCFA : à ajuster dans Gestion > Produits.
+- Illustrations SVG (`public/produits`, `public/rayons`, générées par `tools/generer_illustrations.py`) ;
+  une photo ajoutée dans la fiche produit les remplace.
+- **Mises à jour automatiques** : l'application vérifie une nouvelle version toutes les 60 s, au retour sur
+  l'appli, au focus et à la reconnexion ; la nouvelle version s'active immédiatement et la page se recharge
+  seule, à la même adresse. Testé : nouvelle version visible en moins d'une minute sans action de l'utilisateur.
+- Téléphone : barre de navigation en bas (Accueil, Catalogue, **Messages**, Compte, Panier).

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#f3f8ee"/><stop offset="1" stop-color="#dcebd3"/></radialGradient>
+  <radialGradient id="shine" cx="35%" cy="30%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="400" height="400" rx="36" fill="url(#bg)"/>
+<ellipse cx="200" cy="335" rx="135" ry="20" fill="#000" opacity=".08"/>
+<g transform="translate(200 160) rotate(-12) scale(1)"><path d="M-120 0 C-60-30 40-30 120 -6 C40-12 -60-10 -120 6Z" fill="#4f9d2a" stroke="#3a7a1f" stroke-width="3"/><path d="M-90-6 C-40-18 30-18 90-8" stroke="#8fcf5f" stroke-width="3" fill="none"/></g><g transform="translate(200 190) rotate(-6) scale(1)"><path d="M-120 0 C-60-30 40-30 120 -6 C40-12 -60-10 -120 6Z" fill="#4f9d2a" stroke="#3a7a1f" stroke-width="3"/><path d="M-90-6 C-40-18 30-18 90-8" stroke="#8fcf5f" stroke-width="3" fill="none"/></g><g transform="translate(200 220) rotate(0) scale(1)"><path d="M-120 0 C-60-30 40-30 120 -6 C40-12 -60-10 -120 6Z" fill="#4f9d2a" stroke="#3a7a1f" stroke-width="3"/><path d="M-90-6 C-40-18 30-18 90-8" stroke="#8fcf5f" stroke-width="3" fill="none"/></g><g transform="translate(200 250) rotate(6) scale(1)"><path d="M-120 0 C-60-30 40-30 120 -6 C40-12 -60-10 -120 6Z" fill="#4f9d2a" stroke="#3a7a1f" stroke-width="3"/><path d="M-90-6 C-40-18 30-18 90-8" stroke="#8fcf5f" stroke-width="3" fill="none"/></g><g transform="translate(200 280) rotate(12) scale(1)"><path d="M-120 0 C-60-30 40-30 120 -6 C40-12 -60-10 -120 6Z" fill="#4f9d2a" stroke="#3a7a1f" stroke-width="3"/><path d="M-90-6 C-40-18 30-18 90-8" stroke="#8fcf5f" stroke-width="3" fill="none"/></g>
+</svg>

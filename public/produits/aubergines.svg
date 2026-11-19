@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#f3f8ee"/><stop offset="1" stop-color="#dcebd3"/></radialGradient>
+  <radialGradient id="shine" cx="35%" cy="30%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="400" height="400" rx="36" fill="url(#bg)"/>
+<ellipse cx="200" cy="335" rx="135" ry="20" fill="#000" opacity=".08"/>
+<g transform="translate(160 210) rotate(-10) scale(1)"><path d="M-10-60 C40-70 70-10 50 50 C35 95 -20 100 -45 70 C-70 40 -45 0 -30-30 C-25-45 -20-55 -10-60Z" fill="#5b2a86"/><ellipse cx="22" cy="-10" rx="14" ry="34" fill="#fff" opacity=".18" transform="rotate(-25 22 -10)"/><path d="M-30-48 C-20-80 10-80 20-60 C5-58 0-50 -6-40 C-12-48 -20-52 -30-48Z" fill="#3f8a2e"/><path d="M-2-74 C0-90 6-100 14-104" stroke="#2f6e22" stroke-width="8" fill="none" stroke-linecap="round"/></g><g transform="translate(250 220) rotate(25) scale(0.9)"><path d="M-10-60 C40-70 70-10 50 50 C35 95 -20 100 -45 70 C-70 40 -45 0 -30-30 C-25-45 -20-55 -10-60Z" fill="#5b2a86"/><ellipse cx="22" cy="-10" rx="14" ry="34" fill="#fff" opacity=".18" transform="rotate(-25 22 -10)"/><path d="M-30-48 C-20-80 10-80 20-60 C5-58 0-50 -6-40 C-12-48 -20-52 -30-48Z" fill="#3f8a2e"/><path d="M-2-74 C0-90 6-100 14-104" stroke="#2f6e22" stroke-width="8" fill="none" stroke-linecap="round"/></g>
+</svg>

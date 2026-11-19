@@ -17,7 +17,7 @@ export default function Home() {
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 px-6 py-10 text-white sm:px-10">
         <div className="relative z-10 max-w-xl">
           <h1 className="font-display text-4xl leading-tight sm:text-5xl">Bendo Bio</h1>
-          <p className="mt-3 text-lg text-brand-50">Fruits, légumes et produits frais bio, récoltés près de chez vous et livrés sur le créneau de votre choix.</p>
+          <p className="mt-3 text-lg text-brand-50">Fruits, légumes, volailles et produits frais bio, récoltés et élevés près de chez vous, livrés sur le créneau de votre choix.</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link to="/catalogue" className="rounded-xl bg-white px-5 py-3 font-semibold text-brand-800 shadow hover:bg-brand-50">Voir le catalogue</Link>
             <Link to="/suivi" className="rounded-xl border border-white/60 px-5 py-3 font-semibold text-white hover:bg-white/10">Suivre ma commande</Link>
@@ -36,10 +36,12 @@ export default function Home() {
 
       <section>
         <h2 className="mb-3 text-xl font-bold text-brand-900">Nos rayons</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
           {categories.map(c => (
-            <Link key={c.id} to={`/catalogue?cat=${c.slug}`} className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-white p-4 font-semibold text-brand-900 shadow-sm hover:border-brand-300">
-              <span className="text-3xl" aria-hidden>{c.icon}</span>{c.name}
+            <Link key={c.id} to={`/catalogue?cat=${c.slug}`} className="flex flex-col overflow-hidden rounded-2xl border border-brand-100 bg-white font-semibold text-brand-900 shadow-sm hover:border-brand-300">
+              {c.image_url ? <img src={c.image_url} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                : <span className="flex aspect-[4/3] items-center justify-center text-5xl" aria-hidden>{c.icon}</span>}
+              <span className="px-3 py-2 text-sm">{c.name}</span>
             </Link>
           ))}
         </div>

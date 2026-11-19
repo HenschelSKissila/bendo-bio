@@ -10,7 +10,7 @@ export interface Profile {
   id: string; email: string | null; full_name: string | null; phone: string | null; role: Role; active: boolean
   marketing_consent: boolean; sms_consent: boolean; requested_role?: 'courier' | 'employee' | null; internal_notes: string | null; last_login_at: string | null; created_at: string
 }
-export interface Category { id: string; name: string; slug: string; icon: string; sort_order: number; expiry_alert_days: number | null; active: boolean }
+export interface Category { id: string; name: string; slug: string; icon: string; image_url?: string | null; sort_order: number; expiry_alert_days: number | null; active: boolean }
 export interface Product {
   id: string; sku: string; barcode: string | null; name: string; description: string | null; category_id: string | null
   image_url: string | null; unit: Unit; packaging: string | null; price: number; tax_rate: number; variable_weight: boolean

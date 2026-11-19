@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img">
+<defs>
+  <radialGradient id="bg" cx="50%" cy="40%" r="70%"><stop offset="0" stop-color="#f3f8ee"/><stop offset="1" stop-color="#dcebd3"/></radialGradient>
+  <radialGradient id="shine" cx="35%" cy="30%" r="60%"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="400" height="400" rx="36" fill="url(#bg)"/>
+<ellipse cx="200" cy="335" rx="135" ry="20" fill="#000" opacity=".08"/>
+<g transform="translate(150 220) rotate(0) scale(1)"><path d="M0-74 C-6-50 -70-40 -70 14 C-70 58 -34 74 0 74 C34 74 70 58 70 14 C70-40 6-50 0-74Z" fill="#c9852f"/><path d="M0-60 C-30-20 -40 30 -20 72 M0-60 C30-20 40 30 20 72 M0-60 V74" stroke="#9c5f1c" stroke-width="3" fill="none" opacity=".7"/><ellipse cx="-26" cy="-4" rx="14" ry="26" fill="#fff" opacity=".2"/><path d="M-4-72 C-8-96 -2-108 4-110 C6-96 6-84 4-72Z" fill="#b5893f"/></g><g transform="translate(260 230) rotate(10) scale(0.85)"><path d="M0-74 C-6-50 -70-40 -70 14 C-70 58 -34 74 0 74 C34 74 70 58 70 14 C70-40 6-50 0-74Z" fill="#c9852f"/><path d="M0-60 C-30-20 -40 30 -20 72 M0-60 C30-20 40 30 20 72 M0-60 V74" stroke="#9c5f1c" stroke-width="3" fill="none" opacity=".7"/><ellipse cx="-26" cy="-4" rx="14" ry="26" fill="#fff" opacity=".2"/><path d="M-4-72 C-8-96 -2-108 4-110 C6-96 6-84 4-72Z" fill="#b5893f"/></g>
+</svg>
