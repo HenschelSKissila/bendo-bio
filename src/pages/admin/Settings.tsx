@@ -24,7 +24,9 @@ export default function Settings() {
   const conn = useConnection()
   const [s, setS] = useState<S | null>(null)
   const [health, setHealth] = useState<Health | null>(null)
-  const [push, setPush] = useState<{ configured: boolean; pg_net: boolean; devices: number; staff_devices: number } | null>(null)
+  const [push, setPush] = useState<{ configured: boolean; pg_net: boolean; devices: number; staff_devices: number; courier_devices?: number; my_devices?: number
+    attempts_6h?: number; delivered_6h?: number; verdict?: string; level?: 'ok' | 'info' | 'error'; responses?: { status_code: number | null; message: string; nb: number }[] } | null>(null)
+  const [testMsg, setTestMsg] = useState<string | null>(null)
   const [tables, setTables] = useState<Record<string, { ok: boolean; ms: number; err?: string }>>({})
   const [notifs, setNotifs] = useState<Notif[]>([])
   const [err, setErr] = useState<string | null>(null)
@@ -93,9 +95,16 @@ export default function Settings() {
             <Row label="Tables temps réel" ok={rtExpected.every(t => health.realtime_tables.includes(t))} value={health.realtime_tables.join(', ') || 'aucune'} />
             <Row label="Tâches automatiques" ok={health.pg_cron_installed ? true : null} value={health.pg_cron_installed ? 'pg_cron actif (toutes les 5 min / 1 h)' : 'pg_cron absent : tâches lancées à l\'ouverture du tableau de bord'} />
             <Row label="Dernière exécution" ok={!!health.last_job} value={health.last_job ? `${fmtDateTime(health.last_job.ran_at)} — ${Object.entries(health.last_job.details).map(([k, v]) => `${k}: ${v}`).join(', ')}` : 'jamais'} />
-            <Row label="Notifications push" ok={push ? (push.configured && push.pg_net ? true : null) : false}
-              value={!push ? 'Script 007 non exécuté' : !push.pg_net ? 'Extension pg_net absente' : !push.configured ? 'Envoi non configuré (voir README, étape « notifications push »)'
-                : `Actif — ${push.devices} appareil(s) abonné(s), dont ${push.staff_devices} de l'équipe`} />
+            <Row label="Notifications push (téléphones)" ok={!push ? false : push.level === 'ok' ? true : push.level === 'info' ? null : false}
+              value={!push ? 'Script 016 non exécuté' : <span>
+                <span className="block">{push.verdict}</span>
+                <span className="block text-xs font-normal text-gray-500">
+                  Appareils abonnés : {push.devices} (équipe {push.staff_devices}, livreurs {push.courier_devices ?? 0}) · cet appareil : {push.my_devices ?? 0}
+                  {' · '}<button className="text-brand-700 underline" onClick={async () => { setTestMsg(null); try { await rpc('send_test_notification'); setTestMsg('Envoyée : verrouillez le téléphone, elle doit sonner dans quelques secondes. Puis « Tester maintenant » pour voir le résultat.') } catch (e) { setTestMsg(errMsg(e)) } }}>Tester sur cet appareil</button>
+                </span>
+                {testMsg && <span className="block text-xs text-brand-700">{testMsg}</span>}
+                {push.level === 'error' && push.responses && push.responses.length > 0 && <span className="block text-xs font-normal text-gray-500">Dernière réponse du serveur : {push.responses[0].status_code ?? '—'} {push.responses[0].message}</span>}
+              </span>} />
             <Row label="Notifications" ok={health.notifications.failed === 0} value={`${health.notifications.pending} en attente · ${health.notifications.sent} envoyées · ${health.notifications.failed} en échec`} />
             <Row label="Volumes" ok={true} value={Object.entries(health.counts).map(([k, v]) => `${k} ${v}`).join(' · ')} />
           </>}

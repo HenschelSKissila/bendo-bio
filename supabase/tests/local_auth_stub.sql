@@ -15,3 +15,4 @@ create schema if not exists net;
 create table net.calls(id serial, url text, body jsonb, headers jsonb);
 create function net.http_post(url text, body jsonb default '{}', params jsonb default '{}', headers jsonb default '{}', timeout_milliseconds int default 5000)
 returns bigint language sql as $$ insert into net.calls(url, body, headers) values (url, body, headers) returning id $$;
+create table if not exists net._http_response(id bigserial primary key, status_code int, content_type text, headers jsonb, content text, timed_out bool, error_msg text, created timestamptz default now());

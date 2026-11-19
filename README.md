@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.12)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.13)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -42,6 +42,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
   13. `supabase/migrations/013_boissons.sql` — rayon boissons naturelles (bissap, tangawisi, yaourts)
   14. `supabase/migrations/014_suppression_produits.sql` — suppression / archivage des produits, suppression des rayons vides
   15. `supabase/migrations/015_notifications_completes.sql` — notifications équipe (livraisons, paiements) + test de notification
+  16. `supabase/migrations/016_diagnostic_push.sql` — diagnostic précis des envois push (Paramètres)
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -239,6 +240,9 @@ Les rayons vides se suppriment dans Produits > Catégories. Chaque suppression e
 - Urgentes (livreur, nouvelle commande, message client, départ en livraison) : restent affichées jusqu'à ouverture.
 - Application ouverte : bandeau + carillon + vibration ; vérification de secours toutes les 30 s si le temps
   réel est coupé ; réabonnement automatique si l'abonnement push expire.
-- Bouton **« 🔔 Tester »** (compte client, espace livreur, Paramètres) : envoie une vraie notification via le serveur.
+- Diagnostic dans **Paramètres > Notifications push** : résultat des envois des 6 dernières heures et cause exacte
+  d'un échec (fonction absente, « Verify JWT » activé, secret différent, clés manquantes, aucun téléphone abonné),
+  avec le lien discret « Tester sur cet appareil ». Téléphone verrouillé : seule la notification push (serveur)
+  peut le réveiller — les navigateurs mobiles n'autorisent pas un site à interroger le serveur en arrière-plan.
 - ⚠️ Après cette mise à jour, **redéployer la fonction `send-push`** (Supabase > Edge Functions) avec le
   nouveau fichier `supabase/functions/send-push/index.ts`.
