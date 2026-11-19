@@ -48,7 +48,7 @@ export default function ProductPage() {
             <Link to={`/messages?produit=${p.id}`} className="inline-block rounded-xl border border-brand-300 bg-white px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50">🔎 Demander quand il sera disponible</Link></div>}
           <dl className="mt-6 divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
             {info.map(([k, v]) => (
-              <div key={k} className="grid grid-cols-3 gap-2 p-3 text-sm"><dt className="font-medium text-gray-600">{k}</dt><dd className="col-span-2 text-gray-900">{v || '—'}</dd></div>
+              <div key={k} className="grid grid-cols-[minmax(7.5rem,32%)_1fr] gap-3 p-3 text-sm"><dt className="font-medium text-gray-600">{k}</dt><dd className="text-gray-900">{v || '—'}</dd></div>
             ))}
           </dl>
         </div>

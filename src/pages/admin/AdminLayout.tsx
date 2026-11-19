@@ -93,12 +93,13 @@ function AdminShell() {
   const link = (n: typeof NAV[number], mobile = false) => (
     <NavLink key={n.to} to={n.to} end={n.end}
       className={({ isActive }) => mobile
-        ? `flex flex-none flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[11px] font-medium ${isActive ? 'bg-brand-700 text-white' : 'text-brand-900'}`
+        ? `relative flex flex-none flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[11px] font-medium ${isActive ? 'bg-brand-700 text-white' : 'text-brand-900'}`
         : `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-700 text-white' : 'text-brand-900 hover:bg-brand-50'}`}>
       {mobile ? (
-        <span className="relative"><n.icon className="h-5 w-5" />
-          {badgesFor(n.to, badges).some(x => x.n > 0) && <span className="absolute -right-2 -top-2 rounded-full bg-tomato px-1 text-[10px] font-bold text-white">{badgesFor(n.to, badges).reduce((a, x) => a + x.n, 0)}</span>}
-        </span>
+        <>
+          <n.icon className="h-5 w-5" />
+          {badgesFor(n.to, badges).some(x => x.n > 0) && <span className="absolute right-0.5 top-0.5 min-w-[1.1rem] rounded-full bg-tomato px-1 text-center text-[10px] font-bold leading-4 text-white">{Math.min(99, badgesFor(n.to, badges).reduce((a, x) => a + x.n, 0))}</span>}
+        </>
       ) : <n.icon className="h-5 w-5 flex-none" />}
       {n.label}
       {!mobile && <NavBadges items={badgesFor(n.to, badges)} />}

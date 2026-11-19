@@ -3,6 +3,17 @@
 @tailwind utilities;
 
 html { -webkit-tap-highlight-color: transparent; }
+
+/* ---------------------------------------------------------------------
+   Mise en page robuste : aucun texte ni champ ne déborde de sa case
+   --------------------------------------------------------------------- */
+body { overflow-wrap: break-word; }                       /* mots très longs : retour à la ligne */
+.overflow-x-auto > * { flex-shrink: 0; }                  /* barres d'onglets/filtres défilantes : les boutons ne s'écrasent pas */
+.grid > *, .flex > .flex-1 { min-width: 0; }              /* une colonne peut rétrécir sans que son contenu déborde */
+input, select, textarea { min-width: 0; max-width: 100%; }
+select { text-overflow: ellipsis; }
+dt, th, td, label, legend { overflow-wrap: anywhere; hyphens: auto; }
+img, svg, video { max-width: 100%; }
 body { @apply bg-cream text-gray-900 antialiased; }
 #qr-reader video { border-radius: 0.75rem; }
 

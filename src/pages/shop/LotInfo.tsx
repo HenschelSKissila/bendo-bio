@@ -39,7 +39,7 @@ export default function LotInfo() {
       <Card>
         <dl className="divide-y text-sm">
           {[['Reçu le', fmtDay(l.received_at)], ['Origine', l.origin], ['Agriculture biologique', l.organic ? 'Oui' : 'Non'], ['Conservation', l.conservation], ['Allergènes', l.allergens]]
-            .map(([k, v]) => <div key={k} className="grid grid-cols-3 gap-2 py-2"><dt className="text-gray-600">{k}</dt><dd className="col-span-2">{v || '—'}</dd></div>)}
+            .map(([k, v]) => <div key={k} className="grid grid-cols-[minmax(7.5rem,32%)_1fr] gap-3 py-2"><dt className="text-gray-600">{k}</dt><dd>{v || '—'}</dd></div>)}
         </dl>
       </Card>
       <Card><div className="text-sm font-semibold text-gray-700">Une question sur ce produit ?</div><ContactLinks /></Card>
