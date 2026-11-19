@@ -6,7 +6,7 @@ import { useAuth } from '../lib/auth'
 import { useNotifications } from '../lib/notifications'
 import { money, fmtDateTime, fmtTime, UNIT_LABEL } from '../lib/format'
 import type { OrderStatus, Unit } from '../lib/types'
-import PushPrompt from '../components/PushPrompt'
+import NotificationSettings from '../components/NotificationSettings'
 import ConnectionDot from '../components/ConnectionDot'
 import ThemeToggle from '../components/ThemeToggle'
 import { Button, Card, Field, Input, Select, Textarea, Modal, ErrorBox, Spinner, Empty, StatusBadge } from '../components/ui'
@@ -97,7 +97,7 @@ export default function Courier() {
         </button>
       )}
       <main className="mx-auto max-w-2xl space-y-3 p-3">
-        <PushPrompt compact courier />
+        <NotificationSettings courier />
         <ErrorBox>{err}</ErrorBox>
         {b && (
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -180,6 +180,7 @@ export default function Courier() {
             </Card>
           )
         )}
+        <Link to="/compte" className="block text-center text-sm font-semibold text-brand-700 underline">Mon compte</Link>
       </main>
 
       <Modal open={!!deliver} onClose={() => setDeliver(null)} title="Livraison effectuée">

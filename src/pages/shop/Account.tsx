@@ -5,7 +5,7 @@ import { useAuth } from '../../lib/auth'
 import { money, fmtDateTime } from '../../lib/format'
 import type { Order } from '../../lib/types'
 import OrderTimeline, { type HistEntry } from '../../components/OrderTimeline'
-import PushPrompt from '../../components/PushPrompt'
+import NotificationSettings from '../../components/NotificationSettings'
 import DeliveryCodeBox from '../../components/DeliveryCodeBox'
 import { ThemeChoice } from '../../components/ThemeToggle'
 import { useNotifications } from '../../lib/notifications'
@@ -68,7 +68,6 @@ export default function Account() {
       {(orders ?? []).filter(o => o.status === 'out_for_delivery' && codes[o.id]).map(o => (
         <div key={o.id}><p className="mb-1 text-sm font-semibold text-brand-800">🛵 Commande {o.order_number} en route vers vous</p><DeliveryCodeBox code={codes[o.id]} /></div>
       ))}
-      <PushPrompt compact />
       {sp.get('reset') && (
         <Card className="space-y-2">
           <h2 className="font-bold">Nouveau mot de passe</h2>
@@ -102,6 +101,7 @@ export default function Account() {
         )}
       </Card>
       <div className="grid gap-5 md:grid-cols-2">
+        <NotificationSettings courier={isCourier} />
         <Card className="space-y-3">
           <h2 className="font-bold">Affichage</h2>
           <ThemeChoice />
