@@ -7,6 +7,7 @@ import type { Order } from '../../lib/types'
 import OrderTimeline, { type HistEntry } from '../../components/OrderTimeline'
 import PushPrompt from '../../components/PushPrompt'
 import DeliveryCodeBox from '../../components/DeliveryCodeBox'
+import { ThemeChoice } from '../../components/ThemeToggle'
 import { useNotifications } from '../../lib/notifications'
 import { Button, Card, Field, Input, Select, Textarea, ErrorBox, SuccessBox, StatusBadge, Spinner, Empty } from '../../components/ui'
 
@@ -101,6 +102,10 @@ export default function Account() {
         )}
       </Card>
       <div className="grid gap-5 md:grid-cols-2">
+        <Card className="space-y-3">
+          <h2 className="font-bold">Affichage</h2>
+          <ThemeChoice />
+        </Card>
         <Card className="space-y-3">
           <h2 className="font-bold">Mes informations</h2>
           <Field label="Nom"><Input value={f.full_name} onChange={e => setF({ ...f, full_name: e.target.value })} /></Field>

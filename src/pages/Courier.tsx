@@ -8,6 +8,7 @@ import { money, fmtDateTime, fmtTime, UNIT_LABEL } from '../lib/format'
 import type { OrderStatus, Unit } from '../lib/types'
 import PushPrompt from '../components/PushPrompt'
 import ConnectionDot from '../components/ConnectionDot'
+import ThemeToggle from '../components/ThemeToggle'
 import { Button, Card, Field, Input, Select, Textarea, Modal, ErrorBox, Spinner, Empty, StatusBadge } from '../components/ui'
 
 interface Avail { id: string; order_number: string; status: OrderStatus; area: string | null; city: string | null; slot_start: string | null; slot_end: string | null
@@ -76,6 +77,7 @@ export default function Courier() {
         <div className="mx-auto flex max-w-2xl items-center gap-2 px-3 py-2">
           <img src="/logo.png" className="h-9 w-9" alt="" /><div className="flex-1"><div className="font-display text-brand-700">Bendo Bio</div><div className="text-[11px] text-gray-500">Espace livreur · {profile?.full_name}</div></div>
           <ConnectionDot compact />
+          <ThemeToggle className="!p-1" />
           {isStaff && <Link to="/admin" className="rounded-lg bg-brand-50 px-2 py-1 text-xs font-semibold text-brand-800">Gestion</Link>}
           <Link to="/" aria-label="Boutique"><Store className="h-5 w-5 text-brand-700" /></Link>
           <button aria-label="Déconnexion" onClick={signOut}><LogOut className="h-5 w-5 text-gray-600" /></button>

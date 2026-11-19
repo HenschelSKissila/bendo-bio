@@ -7,6 +7,7 @@ import { fmtDateTime } from '../../lib/format'
 import type { Settings as S } from '../../lib/types'
 import { Button, Card, Field, Input, Textarea, ErrorBox, SuccessBox, Badge } from '../../components/ui'
 import PushPrompt from '../../components/PushPrompt'
+import { ThemeChoice } from '../../components/ThemeToggle'
 
 const TABLES = ['settings', 'profiles', 'categories', 'products', 'lots', 'stock_movements', 'delivery_zones', 'slots', 'orders', 'order_items', 'alerts', 'notifications', 'audit_log']
 
@@ -106,6 +107,8 @@ export default function Settings() {
         <PushPrompt staff compact />
         {isAdmin && <Button variant="secondary" onClick={async () => { try { const r = await rpc('run_maintenance', { p_force: true }); setOk(`Maintenance exécutée : ${JSON.stringify(r)}`); diagnose() } catch (e) { setErr(errMsg(e)) } }}>Lancer les tâches automatiques maintenant</Button>}
       </Card>
+
+      <Card className="space-y-2"><h2 className="text-lg font-bold">Affichage (cet appareil)</h2><ThemeChoice /></Card>
 
       {/* ---------- Paramètres de l'activité ---------- */}
       {s && <Card className="space-y-3">

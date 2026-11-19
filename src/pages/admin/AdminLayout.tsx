@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import ConnectionDot from '../../components/ConnectionDot'
 import { StaffBadgesProvider, useStaffBadges, NavBadges, type StaffBadges } from '../../lib/staffBadges'
 import PushPrompt from '../../components/PushPrompt'
+import ThemeToggle from '../../components/ThemeToggle'
 import { pushState } from '../../lib/push'
 import { Spinner } from '../../components/ui'
 
@@ -109,7 +110,7 @@ function AdminShell() {
         <Link to="/admin" className="mb-4 flex items-center gap-2 px-2"><img src="/logo.png" className="h-10 w-10" alt="" /><div><div className="font-display text-lg text-brand-700">Bendo Bio</div><div className="text-[11px] text-gray-500">Gestion</div></div></Link>
         <nav className="flex flex-1 flex-col gap-0.5">{items.map(n => link(n))}</nav>
         <div className="mt-3 space-y-2 border-t pt-3 text-xs">
-          <ConnectionDot />
+          <div className="flex items-center justify-between"><ConnectionDot /><ThemeToggle withLabel className="!p-1.5" /></div>
           <div className="truncate text-gray-600">{profile?.full_name} · <span className="font-semibold">{profile?.role === 'admin' ? 'Administrateur' : 'Employé'}</span></div>
           <div className="flex gap-3"><Link to="/" className="flex items-center gap-1 text-brand-700"><Store className="h-3.5 w-3.5" />Boutique</Link>
             <button onClick={async () => { await signOut(); nav('/') }} className="flex items-center gap-1 text-gray-600"><LogOut className="h-3.5 w-3.5" />Déconnexion</button></div>
@@ -118,7 +119,7 @@ function AdminShell() {
       <div className="sticky top-0 z-30 border-b bg-white lg:hidden print:hidden">
         <div className="flex items-center justify-between px-3 py-2">
           <Link to="/admin" className="flex items-center gap-2"><img src="/logo.png" className="h-8 w-8" alt="" /><span className="font-display text-brand-700">Bendo Bio</span></Link>
-          <div className="flex items-center gap-3"><ConnectionDot compact /><Link to="/" aria-label="Boutique"><Store className="h-5 w-5 text-brand-700" /></Link>
+          <div className="flex items-center gap-3"><ConnectionDot compact /><ThemeToggle className="!p-1" /><Link to="/" aria-label="Boutique"><Store className="h-5 w-5 text-brand-700" /></Link>
             <button aria-label="Déconnexion" onClick={async () => { await signOut(); nav('/') }}><LogOut className="h-5 w-5 text-gray-600" /></button></div>
         </div>
         <nav className="flex gap-1 overflow-x-auto px-2 pb-2">{items.map(n => link(n, true))}</nav>
