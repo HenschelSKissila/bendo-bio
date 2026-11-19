@@ -37,5 +37,11 @@ alter default privileges in schema public grant select on tables to anon, authen
 alter default privileges in schema public grant insert, update, delete on tables to authenticated;
 alter default privileges in schema public grant usage, select on sequences to authenticated;
 
+-- Comptes créés avant l'installation des scripts : création du profil manquant
+insert into profiles (id, email, full_name, phone)
+select u.id, u.email, coalesce(u.raw_user_meta_data->>'full_name', split_part(u.email,'@',1)), u.raw_user_meta_data->>'phone'
+from auth.users u
+on conflict (id) do nothing;
+
 -- Recharge le cache de l'API pour prise en compte immédiate
 notify pgrst, 'reload schema';
