@@ -68,7 +68,7 @@ function AdminShell() {
   const { b: badges, reload: reloadBadges } = useStaffBadges()
   const [toast, setToast] = useState<{ text: string; body: string | null; url: string } | null>(null)
   const [askPush, setAskPush] = useState(() => {
-    try { return ['default', 'ios_needs_install'].includes(pushState()) && localStorage.getItem('bendo-push-dismissed') !== '1' } catch { return false }
+    try { const t = Number(localStorage.getItem('bendo-push-dismissed') || 0); return ['default', 'ios_needs_install'].includes(pushState()) && Date.now() - t > 3 * 864e5 } catch { return false }
   })
 
   // Toutes les notifications de l'équipe (commandes, messages, alertes, livraisons, paiements, inscriptions) :
@@ -153,7 +153,7 @@ function AdminShell() {
         {askPush && (
           <div className="mb-4 print:hidden">
             <PushPrompt staff compact />
-            <button className="mt-1 text-xs text-gray-500 underline" onClick={() => { setAskPush(false); try { localStorage.setItem('bendo-push-dismissed', '1') } catch { /* ignore */ } }}>Plus tard</button>
+            <button className="mt-1 text-xs text-gray-500 underline" onClick={() => { setAskPush(false); try { localStorage.setItem('bendo-push-dismissed', String(Date.now())) } catch { /* ignore */ } }}>Plus tard</button>
           </div>
         )}
         <Outlet />

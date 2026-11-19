@@ -21,6 +21,18 @@ function urlBase64ToUint8Array(base64: string) {
   return Uint8Array.from([...raw].map(c => c.charCodeAt(0)))
 }
 
+/** Abonnement de ce téléphone avec NOTRE clé (un ancien abonnement fait avec une autre clé est remplacé). */
+async function currentSubscription(reg: ServiceWorkerRegistration, create: boolean) {
+  let sub = await reg.pushManager.getSubscription()
+  const key = urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+  if (sub) {
+    const k = sub.options?.applicationServerKey ? new Uint8Array(sub.options.applicationServerKey) : null
+    if (k && (k.length !== key.length || k.some((v, i) => v !== key[i]))) { await sub.unsubscribe().catch(() => {}); sub = null }
+  }
+  if (!sub && create) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+  return sub
+}
+
 /**
  * Demande l'autorisation d'envoyer des notifications sur ce téléphone puis l'enregistre.
  * À appeler depuis un clic (exigence des navigateurs).
@@ -32,9 +44,8 @@ export async function enablePush(guest?: { orderNumber: string; contact: string 
   if (st === 'unsupported') throw new Error('Ce navigateur ne permet pas les notifications. Utilisez Chrome (Android) ou installez l\'application.')
   const perm = await Notification.requestPermission()
   if (perm !== 'granted') throw new Error('Notifications refusées. Autorisez-les dans les réglages du navigateur (icône 🔒 à côté de l\'adresse).')
-  const reg = await navigator.serviceWorker.ready
-  let sub = await reg.pushManager.getSubscription()
-  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) })
+  const reg = await Promise.race([navigator.serviceWorker.ready, new Promise<never>((_, ko) => setTimeout(() => ko(new Error('Application pas encore prête : rechargez la page puis réessayez.')), 10000))])
+  const sub = (await currentSubscription(reg, true))!
   const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
   const { error } = await supabase.rpc('save_push_subscription', {
     p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth,
@@ -48,11 +59,11 @@ export async function relinkPush() {
   try {
     if (pushState() !== 'granted') return
     const reg = await navigator.serviceWorker.ready
-    let sub = await reg.pushManager.getSubscription()
-    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) })
+    const sub = await currentSubscription(reg, true)
+    if (!sub) return
     const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } }
     await supabase.rpc('save_push_subscription', { p_endpoint: j.endpoint, p_p256dh: j.keys.p256dh, p_auth: j.keys.auth, p_user_agent: navigator.userAgent })
-  } catch { /* silencieux */ }
+  } catch (e) { console.warn('[BENDO] abonnement push non enregistré :', e) }
 }
 
 /** Envoie une notification de test à ses propres appareils (passe par le serveur, comme une vraie). */

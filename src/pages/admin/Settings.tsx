@@ -7,6 +7,7 @@ import { fmtDateTime } from '../../lib/format'
 import type { Settings as S } from '../../lib/types'
 import { Button, Card, Field, Input, Textarea, ErrorBox, SuccessBox, Badge } from '../../components/ui'
 import PushPrompt from '../../components/PushPrompt'
+import { enablePush, pushState } from '../../lib/push'
 import { ThemeChoice } from '../../components/ThemeToggle'
 
 const TABLES = ['settings', 'profiles', 'categories', 'products', 'lots', 'stock_movements', 'delivery_zones', 'slots', 'orders', 'order_items', 'alerts', 'notifications', 'audit_log']
@@ -100,6 +101,11 @@ export default function Settings() {
                 <span className="block">{push.verdict}</span>
                 <span className="block text-xs font-normal text-gray-500">
                   Appareils abonnés : {push.devices} (équipe {push.staff_devices}, livreurs {push.courier_devices ?? 0}) · cet appareil : {push.my_devices ?? 0}
+                  {!push.my_devices && <>{' · '}<button className="font-semibold text-tomato underline" onClick={async () => {
+                    setTestMsg(null)
+                    try { await enablePush(); setTestMsg('Cet appareil est maintenant abonné ✓ — touchez « Tester sur cet appareil ».'); diagnose() }
+                    catch (e) { setTestMsg(errMsg(e)) }
+                  }}>{pushState() === 'granted' ? 'Réactiver sur cet appareil' : 'Activer sur cet appareil'}</button></>}
                   {' · '}<button className="text-brand-700 underline" onClick={async () => { setTestMsg(null); try { await rpc('send_test_notification'); setTestMsg('Envoyée : verrouillez le téléphone, elle doit sonner dans quelques secondes. Puis « Tester maintenant » pour voir le résultat.') } catch (e) { setTestMsg(errMsg(e)) } }}>Tester sur cet appareil</button>
                 </span>
                 {testMsg && <span className="block text-xs text-brand-700">{testMsg}</span>}
