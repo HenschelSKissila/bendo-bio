@@ -49,6 +49,7 @@ export default function Today() {
           { n: b.new_customers, label: 'nouveau(x) client(s) inscrit(s)', to: '/admin/clients', icon: '👤' },
           { n: b.new_products, label: 'nouvel(s) article(s) ajouté(s)', to: '/admin/produits', icon: '🥬' },
           { n: b.new_lots, label: 'réception(s) de stock', to: '/admin/stock', icon: '📦' },
+          { n: b.unread_messages ?? 0, label: 'message(s) client non lu(s)', to: '/admin/messagerie', icon: '💬' },
         ].filter(x => x.n > 0)
         const todo = [
           { n: b.role_requests, label: 'demande(s) d\'accès livreur / gestionnaire à valider', to: '/admin/utilisateurs', icon: '🛵' },

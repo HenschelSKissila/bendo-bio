@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { ShoppingBasket, User, LayoutDashboard, Search, Bell, X } from 'lucide-react'
+import { ShoppingBasket, User, LayoutDashboard, Search, Bell, X, MessageCircle } from 'lucide-react'
 import { useNotifications } from '../../lib/notifications'
 import { useCart } from '../../lib/cart'
 import { useAuth } from '../../lib/auth'
@@ -21,12 +21,14 @@ export default function ShopLayout() {
           </Link>
           <nav className="ml-4 hidden gap-1 md:flex">
             <NavLink to="/catalogue" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-gray-700 hover:bg-gray-50'}`}>Catalogue</NavLink>
+            <NavLink to="/messages?onglet=promos" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-gray-700 hover:bg-gray-50'}`}>Promotions</NavLink>
             <NavLink to="/suivi" className={({ isActive }) => `rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-50 text-brand-800' : 'text-gray-700 hover:bg-gray-50'}`}>Suivre une commande</NavLink>
           </nav>
           <div className="ml-auto flex items-center gap-1">
             <Link to="/catalogue" className="rounded-xl p-2.5 text-brand-800 hover:bg-brand-50 md:hidden" aria-label="Rechercher"><Search className="h-5 w-5" /></Link>
             {isCourier && <Link to="/livreur" className="flex items-center gap-1 rounded-xl bg-carrot px-3 py-2 text-sm font-semibold text-white" title="Espace livreur">🛵<span className="hidden sm:inline">Livraisons</span></Link>}
             {isStaff && <Link to="/admin" className="flex items-center gap-1 rounded-xl bg-brand-800 px-3 py-2 text-sm font-semibold text-white" title="Espace gestion"><LayoutDashboard className="h-4 w-4" /><span className="hidden sm:inline">Gestion</span></Link>}
+            {session && <Link to="/messages" className="rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label="Messages"><MessageCircle className="h-5 w-5" /></Link>}
             {session && (
               <Link to="/notifications" className="relative rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label={`Notifications (${unread} non lue(s))`}>
                 <Bell className="h-5 w-5" />

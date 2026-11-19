@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, Navigate, Link, useNavigate } from 'react-router-dom'
-import { Sun, ClipboardList, Package, Boxes, Users, CalendarClock, Bell, BarChart3, Settings, ShieldCheck, MapPin, History, Store, LogOut, ScanLine } from 'lucide-react'
+import { MessageCircle, Sun, ClipboardList, Package, Boxes, Users, CalendarClock, Bell, BarChart3, Settings, ShieldCheck, MapPin, History, Store, LogOut, ScanLine } from 'lucide-react'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import ConnectionDot from '../../components/ConnectionDot'
@@ -17,6 +17,7 @@ const NAV = [
   { to: '/admin/produits', label: 'Produits', icon: Package },
   { to: '/admin/creneaux', label: 'Créneaux', icon: CalendarClock },
   { to: '/admin/alertes', label: 'Alertes', icon: Bell },
+  { to: '/admin/messagerie', label: 'Messagerie', icon: MessageCircle },
   { to: '/admin/clients', label: 'Clients', icon: Users },
   { to: '/admin/rapports', label: 'Rapports', icon: BarChart3 },
   { to: '/admin/zones', label: 'Zones', icon: MapPin, admin: true },
@@ -34,6 +35,7 @@ function badgesFor(to: string, b: StaffBadges | null): Badge[] {
       { n: b.to_prepare, tone: 'todo', title: 'à préparer' }]
     case '/admin/clients': return [{ n: b.new_customers, tone: 'new', title: 'nouveau(x) client(s) inscrit(s)' },
       { n: b.data_requests, tone: 'todo', title: 'demande(s) RGPD à traiter' }]
+    case '/admin/messagerie': return [{ n: b.unread_messages ?? 0, tone: 'new', title: 'message(s) client non lu(s)' }]
     case '/admin/produits': return [{ n: b.new_products, tone: 'new', title: 'nouvel(s) article(s) ajouté(s)' }]
     case '/admin/stock': return [{ n: b.new_lots, tone: 'new', title: 'nouvelle(s) réception(s) de stock' }]
     case '/admin/alertes': return [{ n: b.critical_alerts, tone: 'critical', title: 'alerte(s) critique(s)' },

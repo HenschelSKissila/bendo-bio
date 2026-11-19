@@ -30,6 +30,8 @@ export default function Courier() {
   const [fail, setFail] = useState<Mine | null>(null)
   const [cash, setCash] = useState<null | { o: Mine; method: string; amount: string; ref: string }>(null)
   const [recv, setRecv] = useState({ rel: 'self', name: '' })
+  const [code, setCode] = useState('')
+  const [codeMsg, setCodeMsg] = useState<string | null>(null)
   const [note, setNote] = useState('')
   const ch = useRef<ReturnType<typeof supabase.channel> | null>(null)
   const isCourier = profile?.role === 'courier' && profile.active
@@ -147,7 +149,7 @@ export default function Courier() {
                 {['ready', 'delivery_failed'].includes(o.status) && <Button loading={busy === o.id} onClick={() => act(o.id, () => rpc('set_order_status', { p_order: o.id, p_status: 'out_for_delivery' }))}><Bike className="h-4 w-4" />{o.status === 'ready' ? 'Commande récupérée — livraison en cours' : 'Nouvelle tentative de livraison'}</Button>}
                 {o.status === 'out_for_delivery' && <>
                   <Button variant="warning" loading={busy === `n${o.id}`} onClick={() => act(`n${o.id}`, () => rpc('notify_order_event', { p_order: o.id, p_event: 'nearby' }))}><MapPin className="h-4 w-4" />Je suis dans le quartier (prévenir le client)</Button>
-                  <Button onClick={() => { setRecv({ rel: 'self', name: '' }); setDeliver(o) }}><CheckCircle2 className="h-4 w-4" />Livraison effectuée</Button>
+                  <Button onClick={() => { setRecv({ rel: 'self', name: '' }); setCode(''); setCodeMsg(null); setDeliver(o) }}><CheckCircle2 className="h-4 w-4" />Livraison effectuée (code client)</Button>
                   <Button variant="secondary" onClick={() => { setNote(''); setFail(o) }}>Livraison impossible</Button>
                 </>}
                 {o.payment_status !== 'paid' && ['out_for_delivery', 'delivered'].includes(o.status) &&
@@ -175,7 +177,13 @@ export default function Courier() {
 
       <Modal open={!!deliver} onClose={() => setDeliver(null)} title="Livraison effectuée">
         {deliver && <div className="space-y-3">
-          <p className="text-sm">Date et heure enregistrées automatiquement : <strong>{new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>. Le client est notifié.</p>
+          <p className="rounded-xl bg-amber-50 p-2 text-sm text-amber-900">Demandez au client son <strong>code de livraison</strong> (6 caractères) au moment de lui remettre la commande. Sans ce code, la livraison ne peut pas être confirmée.</p>
+          <Field label="Code de livraison du client" required>
+            <Input value={code} onChange={e => setCode(e.target.value.toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 8))} autoFocus
+              inputMode="text" autoCapitalize="characters" autoComplete="off" placeholder="ex. 8MRCB3" className="text-center font-mono text-2xl tracking-[0.3em]" />
+          </Field>
+          {codeMsg && <p role="alert" className="text-sm font-semibold text-tomato">{codeMsg}</p>}
+          <p className="text-xs text-gray-500">Date et heure enregistrées automatiquement : {new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}. Le client est notifié.</p>
           <Field label="Commande remise à" required>
             <Select value={recv.rel} onChange={e => setRecv({ ...recv, rel: e.target.value })}>
               <option value="self">Le client en personne ({deliver.customer ?? '—'})</option>
@@ -184,9 +192,15 @@ export default function Courier() {
               <option value="le gardien">Le gardien</option><option value="autre personne">Autre personne</option>
             </Select>
           </Field>
-          {recv.rel !== 'self' && <Field label="Nom de la personne" required><Input value={recv.name} onChange={e => setRecv({ ...recv, name: e.target.value })} placeholder="ex. Adèle" autoFocus /></Field>}
-          <Button className="w-full" loading={busy === 'd'} disabled={recv.rel !== 'self' && recv.name.trim().length < 2}
-            onClick={() => act('d', () => rpc('set_order_status', { p_order: deliver.id, p_status: 'delivered', p_received_by: receivedBy(deliver) }), () => setDeliver(null))}>Confirmer la remise</Button>
+          {recv.rel !== 'self' && <Field label="Nom de la personne" required><Input value={recv.name} onChange={e => setRecv({ ...recv, name: e.target.value })} placeholder="ex. Adèle" /></Field>}
+          <Button className="w-full" loading={busy === 'd'} disabled={code.length < 6 || (recv.rel !== 'self' && recv.name.trim().length < 2)}
+            onClick={() => act('d', async () => {
+              const r = await rpc<{ ok: boolean; locked?: boolean; remaining?: number }>('courier_confirm_delivery', { p_order: deliver.id, p_code: code, p_received_by: receivedBy(deliver) })
+              if (!r.ok) {
+                setCodeMsg(r.locked ? 'Code bloqué après 5 erreurs. Appelez BENDO BIO (+242 06 606 70 58) : seul l\'administrateur peut confirmer.' : `Code incorrect. Il reste ${r.remaining} essai(s).`)
+                throw new Error(r.locked ? 'Code bloqué' : 'Code incorrect')
+              }
+            }, () => setDeliver(null))}>Valider la livraison avec le code</Button>
         </div>}
       </Modal>
       <Modal open={!!fail} onClose={() => setFail(null)} title="Livraison impossible">

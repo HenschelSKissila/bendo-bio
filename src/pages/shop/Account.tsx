@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Link, useSearchParams } from 'react-router-dom'
-import { supabase, errMsg } from '../../lib/supabase'
+import { supabase, rpc, errMsg } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { money, fmtDateTime } from '../../lib/format'
 import type { Order } from '../../lib/types'
 import OrderTimeline, { type HistEntry } from '../../components/OrderTimeline'
 import PushPrompt from '../../components/PushPrompt'
+import DeliveryCodeBox from '../../components/DeliveryCodeBox'
 import { useNotifications } from '../../lib/notifications'
 import { Button, Card, Field, Input, Select, Textarea, ErrorBox, SuccessBox, StatusBadge, Spinner, Empty } from '../../components/ui'
 
@@ -16,12 +17,20 @@ export default function Account() {
   const [open, setOpen] = useState<string | null>(sp.get('commande'))
   const [hist, setHist] = useState<Record<string, HistEntry[]>>({})
   const { list: notifs } = useNotifications()
+  const [codes, setCodes] = useState<Record<string, string>>({})
   const [f, setF] = useState({ full_name: '', phone: '', marketing_consent: false })
   const [pwd, setPwd] = useState('')
   const [req, setReq] = useState({ kind: 'access', message: '' })
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
+  // code de livraison des commandes en cours de livraison
+  useEffect(() => {
+    (orders ?? []).filter(o => o.status === 'out_for_delivery' && !codes[o.id]).forEach(o => {
+      rpc<{ code: string; used_at: string | null; locked: boolean } | null>('my_delivery_code', { p_order: o.id })
+        .then(r => { if (r?.code && !r.used_at) setCodes(c => ({ ...c, [o.id]: r.code })) }).catch(() => {})
+    })
+  }, [orders]) // eslint-disable-line react-hooks/exhaustive-deps
   // recharge à chaque nouvelle notification (étape franchie)
   useEffect(() => {
     if (!session) return
@@ -48,12 +57,16 @@ export default function Account() {
         <h1 className="text-2xl font-bold text-brand-900">Bonjour {profile?.full_name ?? ''}</h1>
         <div className="flex gap-2">
           {isStaff && <Link to="/admin" className="rounded-xl bg-brand-800 px-4 py-2 text-sm font-semibold text-white">Espace gestion</Link>}
+          <Link to="/messages" className="rounded-xl border border-brand-200 bg-white px-4 py-2 text-sm font-semibold text-brand-800">💬 Messages</Link>
           {isCourier && <Link to="/livreur" className="rounded-xl bg-carrot px-4 py-2 text-sm font-semibold text-white">🛵 Espace livreur</Link>}
           <Button variant="secondary" onClick={signOut}>Se déconnecter</Button>
         </div>
       </div>
       <SuccessBox>{msg}</SuccessBox><ErrorBox>{err}</ErrorBox>
       {profile?.requested_role && <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">⏳ Votre demande d'accès <strong>{profile.requested_role === 'courier' ? 'livreur' : 'gestionnaire'}</strong> est en attente de validation par l'administrateur. Vous serez notifié(e).</div>}
+      {(orders ?? []).filter(o => o.status === 'out_for_delivery' && codes[o.id]).map(o => (
+        <div key={o.id}><p className="mb-1 text-sm font-semibold text-brand-800">🛵 Commande {o.order_number} en route vers vous</p><DeliveryCodeBox code={codes[o.id]} /></div>
+      ))}
       <PushPrompt compact />
       {sp.get('reset') && (
         <Card className="space-y-2">

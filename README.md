@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.4)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.5)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -36,6 +36,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
    7. `supabase/migrations/007_notifications_qr.sql` — notifications clients, suivi de livraison, QR de traçabilité
    8. `supabase/migrations/008_livreurs.sql` — rôle livreur et demandes d'accès (à exécuter **séparément** du 007)
    9. `supabase/migrations/009_compteurs_menu.sql` — compteurs de nouveautés dans le menu de gestion
+  10. `supabase/migrations/010_code_livraison_messagerie.sql` — code de livraison client + messagerie / promotions
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -175,3 +176,19 @@ préparer, demandes d'accès livreur/gestionnaire, alertes, demandes RGPD). Les 
 membre de l'équipe, enregistrés en base (identiques sur ordinateur et téléphone) et mis à jour en temps réel.
 La page « Aujourd'hui » résume « Depuis votre dernière visite » et « À traiter » ; les nouveaux éléments sont
 marqués « Nouveau » dans les listes. Chaque nouvelle inscription déclenche aussi une notification à l'équipe.
+
+## 12. Code de livraison (preuve de remise)
+
+Au départ en livraison, un code de 6 caractères (chiffres + lettres, sans 0/O ni 1/I) est tiré par le
+générateur aléatoire cryptographique du serveur et envoyé **uniquement au client** (notification, compte,
+page de suivi), avec l'avertissement de ne jamais le communiquer par téléphone. Le livreur ne le voit jamais :
+il doit le saisir pour valider « Livrée ». 5 erreurs → code bloqué et alerte à l'équipe. L'administrateur peut
+confirmer exceptionnellement sans code, avec un motif obligatoire enregistré.
+
+## 13. Messagerie
+
+- Client : page **Messages** (disponibilité d'un produit, demande hors catalogue, question) et onglet
+  **Promotions & infos** ; bouton « Demander quand il sera disponible » sur les produits en rupture.
+- Équipe : rubrique **Messagerie** (conversations, pastille des messages non lus, réponse notifiée) et
+  **annonces / promotions** envoyées en notification : aux clients ayant accepté les offres, ou à tous pour
+  une information de service. La dernière annonce s'affiche sur la page d'accueil.

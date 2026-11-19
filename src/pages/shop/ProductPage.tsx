@@ -44,7 +44,8 @@ export default function ProductPage() {
               <Button disabled={q > maxAdd + 1e-9} onClick={() => { cart.add(p.id, q); nav('/panier') }}>Ajouter au panier</Button>
               {inCart > 0 && <span className="w-full text-xs text-gray-500">Déjà {num(inCart)} {UNIT_LABEL[p.unit]} dans votre panier.</span>}
             </div>
-          ) : <p className="mt-5 font-semibold text-gray-500">Ce produit est momentanément indisponible.</p>}
+          ) : <div className="mt-5 space-y-2"><p className="font-semibold text-gray-500">Ce produit est momentanément indisponible.</p>
+            <Link to={`/messages?produit=${p.id}`} className="inline-block rounded-xl border border-brand-300 bg-white px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50">🔎 Demander quand il sera disponible</Link></div>}
           <dl className="mt-6 divide-y divide-gray-100 rounded-2xl border border-gray-200 bg-white">
             {info.map(([k, v]) => (
               <div key={k} className="grid grid-cols-3 gap-2 p-3 text-sm"><dt className="font-medium text-gray-600">{k}</dt><dd className="col-span-2 text-gray-900">{v || '—'}</dd></div>

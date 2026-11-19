@@ -5,6 +5,7 @@ import { CartProvider } from './lib/cart'
 import { NotificationsProvider } from './lib/notifications'
 import Notifications from './pages/shop/Notifications'
 import LotInfo from './pages/shop/LotInfo'
+import Messages from './pages/shop/Messages'
 import { Spinner } from './components/ui'
 import ShopLayout from './pages/shop/ShopLayout'
 import Home from './pages/shop/Home'
@@ -36,6 +37,7 @@ const Reports = lazy(() => import('./pages/admin/Reports'))
 const Users = lazy(() => import('./pages/admin/Users'))
 const Audit = lazy(() => import('./pages/admin/Audit'))
 const Settings = lazy(() => import('./pages/admin/Settings'))
+const Messaging = lazy(() => import('./pages/admin/Messaging'))
 
 export default function App() {
   return (
@@ -57,6 +59,7 @@ export default function App() {
                 <Route path="compte" element={<Account />} />
                 <Route path="notifications" element={<Notifications />} />
                 <Route path="l/:id" element={<LotInfo />} />
+                <Route path="messages" element={<Messages />} />
                 <Route path="legal/:doc" element={<Legal />} />
                 <Route path="installation" element={<Setup />} />
               </Route>
@@ -76,6 +79,7 @@ export default function App() {
                 <Route path="utilisateurs" element={<Users />} />
                 <Route path="journal" element={<Audit />} />
                 <Route path="parametres" element={<Settings />} />
+                <Route path="messagerie" element={<Messaging />} />
               </Route>
               <Route path="*" element={<Navigate to="/" />} />
             </Routes>

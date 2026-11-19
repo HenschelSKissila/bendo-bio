@@ -6,7 +6,7 @@ import { useRealtime } from './hooks'
 export interface StaffBadges {
   new_orders: number; new_customers: number; new_products: number; new_lots: number; new_users: number
   to_prepare: number; to_deliver: number; pending_payment: number; role_requests: number; data_requests: number
-  open_alerts: number; critical_alerts: number; unassigned_deliveries: number
+  open_alerts: number; critical_alerts: number; unassigned_deliveries: number; unread_messages?: number
   since: { orders: string; customers: string; products: string; stock: string }
 }
 const C = createContext<{ b: StaffBadges | null; reload: () => void }>({ b: null, reload: () => {} })
@@ -26,7 +26,7 @@ export function StaffBadgesProvider({ enabled, children }: { enabled: boolean; c
     if (!error) setB(data as StaffBadges)
   }, [])
   useEffect(() => { if (enabled) { reload(); const t = setInterval(reload, 60000); return () => clearInterval(t) } }, [enabled, reload])
-  useRealtime(['orders', 'profiles', 'products', 'lots', 'alerts', 'data_requests'], reload, enabled)
+  useRealtime(['orders', 'profiles', 'products', 'lots', 'alerts', 'data_requests', 'messages'], reload, enabled)
   // ouverture d'une rubrique → marquée comme vue (après un court délai pour laisser voir les nouveautés)
   useEffect(() => {
     if (!enabled) return

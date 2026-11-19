@@ -237,6 +237,7 @@ export default function OrderDetail() {
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.label ?? ''}>
         <div className="space-y-3">
           {modal?.to === 'delivered' && <>
+            {o.fulfillment === 'delivery' && <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">🔐 Normalement, le livreur confirme la remise avec le <strong>code du client</strong> dans son espace. Ici, vous confirmez <strong>sans code</strong> : un motif est obligatoire et sera enregistré.</p>}
             <p className="text-sm">La date et l'heure de remise sont enregistrées automatiquement (maintenant : <strong>{new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>). Le client est notifié.{o.payment_status !== 'paid' ? ` Pensez à encaisser ${money(o.total)}.` : ''}</p>
             <Field label="Commande remise à" required>
               <Select value={recv.rel} onChange={e => setRecv({ ...recv, rel: e.target.value })}>
@@ -265,7 +266,8 @@ export default function OrderDetail() {
             ? run(() => rpc('fail_payment', { p_order: o.id, p_reason: note })).then(ok => ok && setModal(null))
             : confirmModal()}
             disabled={(needsReason(modal?.to ?? 'confirmed') && note.trim().length < 3) || (modal?.to === 'cancelled' && o.stock_committed && o.status !== 'confirmed' && !restock)
-              || (modal?.to === 'delivered' && recv.rel !== 'self' && recv.name.trim().length < 2)}>
+              || (modal?.to === 'delivered' && recv.rel !== 'self' && recv.name.trim().length < 2)
+              || (modal?.to === 'delivered' && o.fulfillment === 'delivery' && note.trim().length < 3)}>
             Valider
           </Button>
         </div>

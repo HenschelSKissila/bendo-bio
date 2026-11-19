@@ -6,6 +6,7 @@ import type { OrderStatus, Unit } from '../../lib/types'
 import { Button, Card, Field, Input, ErrorBox, StatusBadge } from '../../components/ui'
 import OrderTimeline, { type HistEntry } from '../../components/OrderTimeline'
 import PushPrompt from '../../components/PushPrompt'
+import DeliveryCodeBox from '../../components/DeliveryCodeBox'
 
 interface Tracked {
   order_number: string; status: OrderStatus; fulfillment: string; total: number; created_at: string
@@ -20,6 +21,7 @@ export default function Track() {
   const [n, setN] = useState(sp.get('n') ?? '')
   const [c, setC] = useState('')
   const [o, setO] = useState<Tracked | null>(null)
+  const [code, setCode] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   async function go(e: React.FormEvent) {
@@ -27,6 +29,7 @@ export default function Track() {
     try {
       const r = await rpc<Tracked | null>('track_order', { p_number: n, p_contact: c })
       if (!r) setErr('Aucune commande trouvée avec ces informations.'); setO(r)
+      setCode(r?.status === 'out_for_delivery' ? await rpc<string | null>('track_delivery_code', { p_number: n, p_contact: c }) : null)
     } catch (e) { setErr(errMsg(e)) } finally { setBusy(false) }
   }
   const steps = STEPS.filter(s => o?.fulfillment === 'delivery' || s !== 'out_for_delivery')
@@ -45,6 +48,7 @@ export default function Track() {
       {o && (
         <Card className="space-y-3">
           <div className="flex items-center justify-between"><span className="font-mono font-bold">{o.order_number}</span><StatusBadge s={o.status} /></div>
+          {code && <DeliveryCodeBox code={code} />}
           <p className="text-sm text-gray-600">Passée le {fmtDateTime(o.created_at)} · Créneau : <strong>{fmtSlot({ starts_at: o.slot_start, ends_at: o.slot_end })}</strong></p>
           {idx >= 0 && (
             <ol className="flex gap-1">

@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Truck, Store, Leaf, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import { useCatalog, useSettings } from '../../lib/hooks'
 import ProductCard from '../../components/ProductCard'
 import { Spinner, ErrorBox } from '../../components/ui'
@@ -8,6 +10,8 @@ export default function Home() {
   const { products, categories, stock, loading, error } = useCatalog()
   const { settings } = useSettings()
   const featured = products.filter(p => p.featured && p.status === 'active').slice(0, 8)
+  const [promo, setPromo] = useState<{ title: string; body: string; product_id: string | null } | null>(null)
+  useEffect(() => { supabase.from('announcements').select('title, body, product_id').order('created_at', { ascending: false }).limit(1).then(({ data }) => setPromo(data?.[0] ?? null)) }, [])
   return (
     <div className="space-y-10">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-brand-700 via-brand-600 to-brand-500 px-6 py-10 text-white sm:px-10">
@@ -21,6 +25,12 @@ export default function Home() {
         </div>
         <img src="/logo.png" alt="" className="absolute right-6 top-1/2 hidden h-72 w-72 -translate-y-1/2 object-contain drop-shadow-2xl md:block" />
       </section>
+
+      {promo && (
+        <Link to={promo.product_id ? `/produit/${promo.product_id}` : '/messages?onglet=promos'} className="block rounded-2xl border-2 border-carrot bg-orange-50 p-4 hover:bg-orange-100">
+          <div className="font-bold text-orange-900">📣 {promo.title}</div><div className="text-sm text-orange-900">{promo.body}</div>
+        </Link>
+      )}
 
       <ErrorBox>{error && `Impossible de charger le catalogue (${error}). Vérifiez la configuration de la base dans Gestion > Paramètres.`}</ErrorBox>
 
