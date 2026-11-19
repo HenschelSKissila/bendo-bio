@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false,   // enregistrement manuel (src/main.tsx) avec vérification périodique des mises à jour
       includeAssets: ['favicon.png', 'apple-touch-icon.png', 'logo.png'],
       manifest: {
         name: 'BENDO BIO — Produits frais livrés',

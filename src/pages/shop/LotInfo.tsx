@@ -42,7 +42,7 @@ export default function LotInfo() {
             .map(([k, v]) => <div key={k} className="grid grid-cols-3 gap-2 py-2"><dt className="text-gray-600">{k}</dt><dd className="col-span-2">{v || '—'}</dd></div>)}
         </dl>
       </Card>
-      <p className="text-center text-sm text-gray-600">Une question sur ce produit ? {BRAND.phone} · {BRAND.email}</p>
+      <p className="text-center text-sm text-gray-600">Une question sur ce produit ? {BRAND.phone} · {BRAND.email} · <a href={BRAND.facebook} target="_blank" rel="noreferrer" className="text-brand-700 underline">Facebook</a></p>
       <div className="text-center"><Link to={`/produit/${l.product_id}`} className="font-semibold text-brand-700 underline">Commander ce produit</Link></div>
     </div>
   )

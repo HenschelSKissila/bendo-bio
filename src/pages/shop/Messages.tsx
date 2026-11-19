@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, Navigate, useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Send, Megaphone } from 'lucide-react'
 import { supabase, rpc, errMsg } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
@@ -42,7 +42,15 @@ export default function Messages() {
   useEffect(() => { end.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs?.length])
 
   if (loading) return <Spinner />
-  if (!session) return <Navigate to={`/connexion?next=${encodeURIComponent('/messages' + window.location.search)}`} />
+  if (!session) return (
+    <Card className="mx-auto max-w-md space-y-3 text-center">
+      <div className="text-4xl">💬</div>
+      <h1 className="text-xl font-bold text-brand-900">Écrire à BENDO BIO</h1>
+      <p className="text-sm text-gray-600">Demandez la disponibilité d'un produit, un article hors catalogue (poulet Brahma, canard…) ou posez une question. Connectez-vous ou créez votre compte gratuit pour échanger avec l'équipe et recevoir les promotions.</p>
+      <Link to={`/connexion?next=${encodeURIComponent('/messages' + window.location.search)}`} className="block rounded-xl bg-brand-700 px-4 py-2.5 font-semibold text-white">Se connecter</Link>
+      <Link to={`/connexion?mode=signup&next=${encodeURIComponent('/messages')}`} className="block rounded-xl border border-brand-200 px-4 py-2.5 font-semibold text-brand-800">Créer un compte</Link>
+    </Card>
+  )
   const pname = (id: string | null) => products.find(p => p.id === id)?.name
 
   async function send() {

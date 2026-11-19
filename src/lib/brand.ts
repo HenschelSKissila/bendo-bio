@@ -5,6 +5,7 @@ export const BRAND = {
   phoneHref: 'tel:+242066067058',
   whatsapp: 'https://wa.me/242066067058',
   email: 'bendobio@gmail.com',
+  facebook: 'https://www.facebook.com/bendobio',
   address: 'Ngoyo centrale, Pointe-Noire',
   country: 'République du Congo',
   cities: 'Pointe-Noire · Brazzaville',

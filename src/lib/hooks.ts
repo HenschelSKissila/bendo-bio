@@ -65,6 +65,9 @@ export function useConnection() {
   return { ...s, check: conn.check }
 }
 
+/** Icône du rayon de chaque catégorie (image par défaut des produits sans photo). */
+export const categoryIcons: Record<string, string> = {}
+
 /** Catalogue public + stock disponible, mis à jour en temps réel. */
 export function useCatalog() {
   const [products, setProducts] = useState<Product[]>([])
@@ -82,6 +85,7 @@ export function useCatalog() {
     else setError(null)
     setProducts((p.data as Product[]) ?? [])
     setCategories((c.data as Category[]) ?? [])
+    for (const cat of (c.data as Category[]) ?? []) categoryIcons[cat.id] = cat.icon
     setStock(Object.fromEntries(((s.data as Stock[]) ?? []).map(x => [x.product_id, x])))
     setLoading(false)
   }, [])
