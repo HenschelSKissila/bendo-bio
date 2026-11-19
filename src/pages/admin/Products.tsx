@@ -8,6 +8,7 @@ import type { Product, Category, Stock, Unit } from '../../lib/types'
 import { ProductImage } from '../../components/ProductCard'
 import { Button, Card, Field, Input, Select, Textarea, Modal, ErrorBox, Spinner, Badge, Empty } from '../../components/ui'
 import { useStaffBadges } from '../../lib/staffBadges'
+import { compressImage, isPlaceholderImage } from '../../lib/image'
 
 const EMPTY: Partial<Product> = { sku: '', name: '', unit: 'piece', price: 0, tax_rate: 5.5, min_qty: 1, qty_step: 1, status: 'active',
   low_threshold: 10, critical_threshold: 3, organic: true, featured: false, variable_weight: false }
@@ -28,6 +29,7 @@ export default function Products() {
   const [stock, setStock] = useState<Record<string, Stock>>({})
   const [q, setQ] = useState('')
   const [cat, setCat] = useState('')
+  const [noPhoto, setNoPhoto] = useState(false)
   const [edit, setEdit] = useState<Partial<Product> | null>(null)
   const [catModal, setCatModal] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -41,8 +43,8 @@ export default function Products() {
   }, [])
   useEffect(() => { load() }, [load])
   useRealtime(['products', 'lots'], load)
-  const list = useMemo(() => (products ?? []).filter(p => (!cat || p.category_id === cat)
-    && (!q || `${p.name} ${p.sku} ${p.barcode ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [products, q, cat])
+  const list = useMemo(() => (products ?? []).filter(p => (!cat || p.category_id === cat) && (!noPhoto || isPlaceholderImage(p.image_url))
+    && (!q || `${p.name} ${p.sku} ${p.barcode ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [products, q, cat, noPhoto])
 
   async function save() {
     if (!edit) return
@@ -60,9 +62,9 @@ export default function Products() {
   async function upload(file: File) {
     setErr(null); setBusy(true)
     try {
-      if (file.size > 3 * 1024 * 1024) throw new Error('Image trop lourde (3 Mo max). Compressez-la.')
-      const path = `${edit?.sku || 'produit'}-${Date.now()}.${file.name.split('.').pop()}`
-      const { error } = await supabase.storage.from('product-images').upload(path, file, { upsert: true, contentType: file.type })
+      const blob = await compressImage(file, 1200, true)   // carré 1200 px, JPEG ~85 % (photo de téléphone acceptée)
+      const path = `${(edit?.sku || 'produit').toLowerCase()}-${Date.now()}.jpg`
+      const { error } = await supabase.storage.from('product-images').upload(path, blob, { upsert: true, contentType: 'image/jpeg', cacheControl: '31536000' })
       if (error) throw new Error(error.message)
       const { data } = supabase.storage.from('product-images').getPublicUrl(path)
       setEdit(e => ({ ...e!, image_url: data.publicUrl }))
@@ -79,9 +81,11 @@ export default function Products() {
           <Button onClick={() => { setErr(null); setEdit({ ...EMPTY, category_id: cats[0]?.id }) }}><Plus className="h-4 w-4" />Nouveau produit</Button>
         </div>
       </div>
-      <Card className="grid gap-2 !p-3 sm:grid-cols-2">
+      <Card className="grid gap-2 !p-3 sm:grid-cols-3">
         <Input type="search" placeholder="Nom, SKU ou code-barres" value={q} onChange={e => setQ(e.target.value)} />
         <Select value={cat} onChange={e => setCat(e.target.value)}><option value="">Toutes catégories</option>{cats.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</Select>
+        <label className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 text-sm"><input type="checkbox" className="accent-brand-700" checked={noPhoto} onChange={e => setNoPhoto(e.target.checked)} />
+          📷 Sans vraie photo ({(products ?? []).filter(p => isPlaceholderImage(p.image_url)).length})</label>
       </Card>
       {!products ? <Spinner /> : list.length === 0 ? <Empty>Aucun produit.</Empty> : (
         <Card className="overflow-x-auto !p-0">
@@ -90,7 +94,7 @@ export default function Products() {
             <tbody className="divide-y">
               {list.map(p => { const s = stock[p.id]; return (
                 <tr key={p.id} className="cursor-pointer hover:bg-brand-50/40" onClick={() => { setErr(null); setEdit(p) }}>
-                  <td className="flex items-center gap-2 p-2"><ProductImage p={p} className="h-10 w-10 rounded-lg text-xl" /><div><div className="font-semibold">{p.name} {since && p.created_at && p.created_at > since && <Badge cls="bg-tomato text-white">Nouveau</Badge>}</div><div className="text-xs text-gray-500">{p.sku}{p.packaging ? ` · ${p.packaging}` : ''}</div></div></td>
+                  <td className="flex items-center gap-2 p-2"><ProductImage p={p} className="h-10 w-10 rounded-lg text-xl" /><div><div className="font-semibold">{p.name} {since && p.created_at && p.created_at > since && <Badge cls="bg-tomato text-white">Nouveau</Badge>}</div><div className="text-xs text-gray-500">{p.sku}{p.packaging ? ` · ${p.packaging}` : ''}</div>{isPlaceholderImage(p.image_url) && <Badge cls="mt-0.5 bg-amber-100 text-amber-800">📷 Photo à ajouter</Badge>}</div></td>
                   <td>{money(p.price)}<span className="text-xs text-gray-500"> /{UNIT_LABEL[p.unit]}</span></td>
                   <td className="tabular-nums">{num(s?.physical)}</td>
                   <td className="tabular-nums">{num(s?.reserved)}</td>
@@ -136,7 +140,7 @@ export default function Products() {
           <div className="flex items-center gap-3">
             {edit.image_url && <img src={edit.image_url} className="h-20 w-20 rounded-xl object-cover" alt="" />}
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-brand-200 px-4 py-2 text-sm font-semibold text-brand-800 hover:bg-brand-50">
-              <Upload className="h-4 w-4" />Photo<input type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
+              <Upload className="h-4 w-4" />{busy ? 'Envoi…' : 'Prendre / choisir une photo'}<input type="file" accept="image/*" capture="environment" className="hidden" onChange={e => e.target.files?.[0] && upload(e.target.files[0])} />
             </label>
             <Input placeholder="ou URL de l'image" value={edit.image_url ?? ''} onChange={e => set('image_url', e.target.value)} />
           </div>
@@ -156,7 +160,7 @@ function CategoriesModal({ open, onClose, cats }: { open: boolean; onClose: () =
   async function saveRow(c: Partial<Category>) {
     setErr(null)
     const slug = (c.slug || c.name || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    const payload = { name: c.name, slug, icon: c.icon || '🥬', sort_order: c.sort_order ?? 0, expiry_alert_days: c.expiry_alert_days || null, active: c.active ?? true }
+    const payload = { name: c.name, slug, icon: c.icon || '🥬', sort_order: c.sort_order ?? 0, expiry_alert_days: c.expiry_alert_days || null, active: c.active ?? true, image_url: c.image_url ?? null }
     const r = c.id ? await supabase.from('categories').update(payload).eq('id', c.id) : await supabase.from('categories').insert(payload)
     if (r.error) setErr(r.error.message)
   }
@@ -164,7 +168,21 @@ function CategoriesModal({ open, onClose, cats }: { open: boolean; onClose: () =
     <Modal open={open} onClose={onClose} title="Catégories" wide>
       <div className="space-y-2">
         {rows.map((c, i) => (
-          <div key={c.id ?? i} className="grid grid-cols-[3rem_1fr_5rem_6rem_auto] items-center gap-2">
+          <div key={c.id ?? i} className="grid grid-cols-[3rem_3rem_1fr_5rem_6rem_auto] items-center gap-2">
+            <label className="relative h-12 w-12 cursor-pointer overflow-hidden rounded-lg border border-gray-200 bg-gray-50" title="Photo du rayon">
+              {c.image_url ? <img src={c.image_url} alt="" className="h-full w-full object-cover" /> : <span className="flex h-full items-center justify-center text-xl">📷</span>}
+              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={async e => {
+                const f = e.target.files?.[0]; if (!f) return
+                try {
+                  const blob = await compressImage(f, 800, true)
+                  const path = `rayon-${(c.slug || c.name || 'x').toString().toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now()}.jpg`
+                  const { error } = await supabase.storage.from('product-images').upload(path, blob, { upsert: true, contentType: 'image/jpeg' })
+                  if (error) throw new Error(error.message)
+                  const url = supabase.storage.from('product-images').getPublicUrl(path).data.publicUrl
+                  setRows(r => r.map((x, j) => j === i ? { ...x, image_url: url } : x))
+                } catch (er) { setErr(errMsg(er)) }
+              }} />
+            </label>
             <Input value={c.icon ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, icon: e.target.value } : x))} aria-label="Icône" />
             <Input value={c.name ?? ''} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} aria-label="Nom" />
             <Input type="number" value={c.sort_order ?? 0} onChange={e => setRows(r => r.map((x, j) => j === i ? { ...x, sort_order: parseInt(e.target.value) } : x))} aria-label="Ordre" />
@@ -173,7 +191,7 @@ function CategoriesModal({ open, onClose, cats }: { open: boolean; onClose: () =
           </div>
         ))}
         <Button variant="ghost" onClick={() => setRows(r => [...r, { name: '', icon: '🥬', sort_order: r.length + 1 }])}><Plus className="h-4 w-4" />Ajouter</Button>
-        <p className="text-xs text-gray-500">Colonnes : icône, nom, ordre d'affichage, délai d'alerte DLC (jours) propre à la catégorie.</p>
+        <p className="text-xs text-gray-500">Colonnes : photo du rayon (touchez pour en prendre/choisir une), icône, nom, ordre d'affichage, délai d'alerte DLC (jours). Cliquez « OK » pour enregistrer la ligne.</p>
         <ErrorBox>{err}</ErrorBox>
       </div>
     </Modal>

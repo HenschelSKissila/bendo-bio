@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.8)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.9)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -39,6 +39,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
   10. `supabase/migrations/010_code_livraison_messagerie.sql` — code de livraison client + messagerie / promotions
   11. `supabase/migrations/011_volaille.sql` — rayons volaille bio (poulets, canards, poussins, pondeuses)
   12. `supabase/migrations/012_produits_illustrations.sql` — nouveaux légumes/fruits + illustrations produits et rayons
+  13. `supabase/migrations/013_boissons.sql` — rayon boissons naturelles (bissap, tangawisi, yaourts)
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -211,3 +212,10 @@ Bouton 🖥️/☀️/🌙 dans l'en-tête (boutique, gestion, espace livreur) e
   l'appli, au focus et à la reconnexion ; la nouvelle version s'active immédiatement et la page se recharge
   seule, à la même adresse. Testé : nouvelle version visible en moins d'une minute sans action de l'utilisateur.
 - Téléphone : barre de navigation en bas (Accueil, Catalogue, **Messages**, Compte, Panier).
+
+## 16. Photos des produits
+
+Gestion > Produits : filtre « 📷 Sans vraie photo » et étiquette « Photo à ajouter » sur chaque produit qui n'a
+encore qu'une illustration. Dans la fiche, « Prendre / choisir une photo » ouvre l'appareil photo du téléphone ;
+l'image est recadrée en carré et allégée automatiquement (1200 px, ~300 Ko). Même principe pour la photo de
+chaque rayon (Produits > Catégories). Mode nuit vérifié automatiquement sur les 29 écrans.
