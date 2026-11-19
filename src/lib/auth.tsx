@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { unlinkPush } from './push'
 import type { Profile } from './types'
 
 interface AuthCtx {
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAdmin: active && profile?.role === 'admin',
     isCourier: active && profile?.role === 'courier',
     refreshProfile: () => loadProfile(session),
-    signOut: async () => { await supabase.auth.signOut(); setProfile(null) },
+    signOut: async () => { await unlinkPush(); await supabase.auth.signOut(); setProfile(null) },
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

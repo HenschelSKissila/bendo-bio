@@ -204,7 +204,8 @@ language sql stable security definer set search_path = public as $$
     'items', (select jsonb_agg(jsonb_build_object('name', product_name, 'quantity', quantity, 'unit', unit, 'line_total', line_total, 'unavailable', unavailable))
               from order_items where order_id = o.id),
     'history', (select jsonb_agg(jsonb_build_object('to_status', h.to_status, 'note', h.note, 'created_at', h.created_at) order by h.created_at)
-                from order_status_history h where h.order_id = o.id))
+                from order_status_history h where h.order_id = o.id
+                  and not (h.from_status = h.to_status and (h.note like 'Livreur retiré%' or h.note like 'Livraison prise en charge%'))))
   from orders o left join slots s on s.id = o.slot_id
   left join profiles pr on pr.id = o.customer_id
   where upper(o.order_number) = upper(trim(p_number))
@@ -276,8 +277,8 @@ begin
   insert into push_subscriptions(user_id, order_id, endpoint, p256dh, auth, user_agent)
   values (auth.uid(), v_order, p_endpoint, p_p256dh, p_auth, left(p_user_agent, 200))
   on conflict (endpoint) do update set
-    user_id = coalesce(excluded.user_id, push_subscriptions.user_id),
-    order_id = coalesce(excluded.order_id, push_subscriptions.order_id),
+    user_id = excluded.user_id,
+    order_id = excluded.order_id,
     p256dh = excluded.p256dh, auth = excluded.auth;
   return 'ok';
 end $$;
@@ -346,7 +347,7 @@ begin
     'staff_devices', (select count(*) from push_subscriptions s join profiles p on p.id = s.user_id where p.role in ('employee','admin')));
 end $$;
 grant execute on function push_health() to authenticated;
-revoke execute on function push_health() from anon;
+revoke execute on function push_health() from public, anon;
 
 -- Droits
 revoke execute on function enqueue_order_notification(uuid, text, text, text) from public, anon, authenticated;
@@ -356,6 +357,7 @@ grant execute on function notify_order_event(uuid, text, text) to authenticated;
 grant execute on function track_order(text, text) to anon, authenticated;
 grant execute on function lot_public(uuid) to anon, authenticated;
 grant execute on function confirm_payment(uuid, text, text, numeric) to authenticated, service_role;
-revoke execute on function set_order_status(uuid, order_status, text, boolean, text) from anon;
-revoke execute on function notify_order_event(uuid, text, text) from anon;
+revoke execute on function set_order_status(uuid, order_status, text, boolean, text) from public, anon;
+revoke execute on function notify_order_event(uuid, text, text) from public, anon;
+revoke execute on function mark_notifications_read(bigint) from public, anon;
 notify pgrst, 'reload schema';

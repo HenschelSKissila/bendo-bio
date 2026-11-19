@@ -1,8 +1,11 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.1)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.2)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
 
+> **Mise à jour v1.2** (notifications clients, livreurs, QR) : exécutez `007_notifications_qr.sql` puis
+> `008_livreurs.sql` (deux requêtes séparées dans le SQL Editor), puis configurez l'envoi push (§ 8).
+>
 > **Base déjà installée (scripts 001 à 005 exécutés) ?** Exécutez seulement `supabase/migrations/006_correctifs_congo.sql`
 > dans le SQL Editor : il corrige la réception de stock et les commandes, applique les paramètres Congo (FCFA,
 > Africa/Brazzaville, quartiers de Pointe-Noire, contacts) et les correctifs de la revue de code.
@@ -30,6 +33,8 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
    4. `supabase/migrations/004_seed_and_cron.sql` — catégories, 9 produits d'exemple, zone, créneaux, tâches automatiques
    5. `supabase/migrations/005_grants.sql` — droits d'accès de l'API (**obligatoire** sur les projets Supabase récents, sinon « permission denied for table »)
    6. `supabase/migrations/006_correctifs_congo.sql` — correctifs + paramètres Congo (Pointe-Noire, FCFA, contacts)
+   7. `supabase/migrations/007_notifications_qr.sql` — notifications clients, suivi de livraison, QR de traçabilité
+   8. `supabase/migrations/008_livreurs.sql` — rôle livreur et demandes d'accès (à exécuter **séparément** du 007)
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -125,3 +130,38 @@ Tests : `supabase/tests/scenario.sql` puis `supabase/tests/review_fixes.sql` (ba
   `supabase/functions/send-notifications` (Resend) et planifiez-la toutes les 2 minutes. SMS/WhatsApp : en option.
 - **Textes légaux** (mentions, CGV, confidentialité) : champs à compléter dans Paramètres, à faire valider.
 - Codes promo, fidélité, multi-entrepôts : P1/P2, hors v1.
+
+## 8. Notifications sur le téléphone (push)
+
+Chaque étape d'une commande (confirmée, en préparation, prête, en livraison, livreur dans le quartier, livrée
+avec date/heure et personne qui a reçu, paiement reçu, message de l'équipe) est enregistrée dans le
+**centre de notifications** du client (cloche 🔔, temps réel). Pour qu'elle arrive aussi **sur le téléphone,
+site fermé**, l'utilisateur touche « Autoriser les notifications » ; le site l'envoie via la fonction
+`supabase/functions/send-push` (Web Push, gratuit).
+
+Mise en place (une fois) : créer la fonction `send-push` dans Supabase > Edge Functions (éditeur en ligne),
+renseigner les secrets `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `PUSH_WEBHOOK_SECRET`, puis enregistrer l'URL
+de la fonction dans la table `app_secrets`. Les valeurs exactes sont dans le document privé fourni à part
+(jamais sur GitHub). Vérification : Gestion > Paramètres > « Notifications push ».
+
+- Android (Chrome) : fonctionne directement.
+- iPhone (iOS 16.4+) : ajouter d'abord le site à l'écran d'accueil (Partager > Sur l'écran d'accueil).
+
+## 9. Livreurs
+
+- À l'inscription, la personne choisit **Client / Livreur / Gestionnaire**. Livreur et gestionnaire restent
+  en attente (compte client) jusqu'à validation dans **Gestion > Utilisateurs**.
+- Espace **/livreur** : livraisons à prendre (quartier, créneau, frais de livraison, valeur de la marchandise,
+  montant à encaisser), prise en charge en un geste — la livraison disparaît aussitôt chez les autres —,
+  mes livraisons (adresse et téléphone révélés seulement au livreur qui l'a prise), historique et gains.
+- Actions : récupérée / en cours, « je suis dans le quartier », livrée (remise à…), échec, argent encaissé.
+- Notifications livreurs : nouvelle livraison disponible, commande prête à récupérer, livraison annulée.
+- L'équipe peut aussi attribuer une livraison à un livreur depuis la fiche commande.
+
+## 10. Étiquettes et QR codes
+
+Le QR code contient une **adresse web** : n'importe quel téléphone qui le scanne ouvre la fiche de
+traçabilité du lot (produit, lot, date limite, origine, conservation). Un employé connecté y trouve les
+actions de stock. Formats : étiquette QR (bac, cagette, sachet), étiquette simple sans QR (logo + référence +
+date limite) et étiquette colis (QR de suivi pour le client). Les produits en vrac ne sont pas étiquetés
+individuellement : on étiquette le contenant du lot.

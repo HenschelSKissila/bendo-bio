@@ -26,7 +26,7 @@ export default function Notifications() {
                 <div className="font-semibold text-gray-900">{n.subject}</div>
                 {n.body && <div className="text-sm text-gray-700">{n.body}</div>}
                 <div className="mt-1 flex gap-3 text-xs text-gray-500"><span>{fmtDateTime(n.created_at)}</span>
-                  {n.order_id && <Link to={`/compte?commande=${n.order_id}`} className="text-brand-700 underline">Voir la commande</Link>}</div>
+                  {n.order_id && <Link to={n.event.startsWith('courier_') ? '/livreur' : `/compte?commande=${n.order_id}`} className="text-brand-700 underline">{n.event.startsWith('courier_') ? 'Espace livreur' : 'Voir la commande'}</Link>}</div>
               </div>
             </div>
           ))}

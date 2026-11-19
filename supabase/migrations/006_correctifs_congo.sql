@@ -518,5 +518,5 @@ revoke execute on function open_alert(text, alert_level, text, uuid, uuid, uuid)
 -- Droits (au cas où) + rechargement de l'API
 grant execute on function receive_stock(uuid, numeric, text, date, text, text, numeric, date, text) to authenticated;
 grant execute on function confirm_payment(uuid, text, text, numeric) to authenticated, service_role;
-revoke execute on function new_order_number() from anon;
+revoke execute on function new_order_number() from public, anon;
 notify pgrst, 'reload schema';

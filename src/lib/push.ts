@@ -55,6 +55,18 @@ export async function relinkPush() {
   } catch { /* silencieux */ }
 }
 
+/** Déconnexion : cet appareil ne reçoit plus les notifications du compte. */
+export async function unlinkPush() {
+  try {
+    if (!('serviceWorker' in navigator)) return
+    const reg = await Promise.race([navigator.serviceWorker.ready, new Promise<null>(r => setTimeout(() => r(null), 1500))])
+    const sub = await reg?.pushManager?.getSubscription()
+    if (!sub) return
+    await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+    await sub.unsubscribe()
+  } catch { /* silencieux */ }
+}
+
 /** Affiche une notification système immédiatement (application ouverte en arrière-plan). */
 export async function showLocal(title: string, body: string, url: string) {
   try {

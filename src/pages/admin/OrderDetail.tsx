@@ -249,7 +249,7 @@ export default function OrderDetail() {
             </Field>
             {recv.rel !== 'self' && <Field label="Nom de la personne" required><Input value={recv.name} onChange={e => setRecv({ ...recv, name: e.target.value })} placeholder="ex. Adèle" autoFocus /></Field>}
           </>}
-          <Field label={needsReason(modal?.to ?? 'confirmed') ? 'Motif' : 'Commentaire'} required={needsReason(modal?.to ?? 'confirmed')}>
+          <Field label={needsReason(modal?.to ?? 'confirmed') ? 'Motif (visible par le client)' : 'Commentaire (visible par le client)'} required={needsReason(modal?.to ?? 'confirmed')}>
             <Textarea value={note} onChange={e => setNote(e.target.value)} />
           </Field>
           {modal?.to === 'cancelled' && o.stock_committed && o.status !== 'confirmed' && (

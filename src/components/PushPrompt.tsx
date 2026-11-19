@@ -8,10 +8,12 @@ export default function PushPrompt({ guest, staff, courier, compact }: { guest?:
   const [state, setState] = useState(pushState())
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [done, setDone] = useState(false)
   async function go() {
     setErr(null); setBusy(true)
-    try { await enablePush(guest); setState('granted') } catch (e) { setErr((e as Error).message); setState(pushState()) } finally { setBusy(false) }
+    try { await enablePush(guest); setState('granted'); setDone(true) } catch (e) { setErr((e as Error).message); setState(pushState()) } finally { setBusy(false) }
   }
+  if (done && guest) return <p className="flex items-center gap-2 rounded-xl bg-green-50 p-3 text-sm font-semibold text-green-800"><CheckCircle2 className="h-4 w-4" />Notifications activées : vous serez prévenu(e) de chaque étape de cette commande.</p>
   if (state === 'granted' && !guest) return compact ? null : (
     <p className="flex items-center gap-2 text-sm text-brand-700"><CheckCircle2 className="h-4 w-4" />Notifications activées sur cet appareil.</p>
   )

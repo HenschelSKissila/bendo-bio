@@ -173,6 +173,9 @@ language plpgsql security definer set search_path = public as $$
 declare o orders;
 begin
   perform require_staff();
+  if (select status from orders where id = p_order) = 'out_for_delivery' then
+    raise exception 'INVALID_STATE: livraison en cours, réattribution impossible';
+  end if;
   if p_courier is not null and not exists (select 1 from profiles where id = p_courier and role::text = 'courier' and active) then
     raise exception 'INVALID_COURIER: ce compte n''est pas un livreur actif';
   end if;
@@ -193,7 +196,8 @@ begin
   if new.fulfillment <> 'delivery' then return new; end if;
   select to_char(s.starts_at at time zone shop_tz(), 'DD/MM HH24:MI') into v_slot from slots s where s.id = new.slot_id;
   -- nouvelle livraison disponible
-  if new.status = 'confirmed' and new.courier_id is null and (tg_op = 'INSERT' or old.status is distinct from 'confirmed') then
+  if new.status = 'confirmed' and new.courier_id is null and (tg_op = 'INSERT' or old.status is distinct from 'confirmed')
+     and not exists (select 1 from notifications n where n.order_id = new.id and n.event = 'courier_new') then
     insert into notifications(event, recipient, channel, order_id, subject, body, status, sent_at, user_id)
     select 'courier_new', null, 'app', new.id, 'Nouvelle livraison : ' || coalesce(new.address_postal_code, 'Pointe-Noire'),
            'Créneau ' || coalesce(v_slot,'?') || ' — frais de livraison ' || trim_scale(new.delivery_fee) || ' ' || new.currency
@@ -208,6 +212,12 @@ begin
                 else 'Vous pouvez venir la récupérer à Ngoyo centrale (créneau ' || coalesce(v_slot,'?') || ').' end,
            'sent', now(), p.id
     from profiles p where p.role::text = 'courier' and p.active and (new.courier_id is null or p.id = new.courier_id);
+  end if;
+  -- livraison annulée alors qu'un livreur l'avait prise : le prévenir
+  if new.status in ('cancelled','refunded') and old.status is distinct from new.status and new.courier_id is not null then
+    insert into notifications(event, recipient, channel, order_id, subject, body, status, sent_at, user_id)
+    values ('courier_cancelled', null, 'app', new.id, '❌ Livraison annulée : ' || new.order_number,
+            'Ne pas récupérer ni livrer cette commande (' || coalesce(new.address_postal_code,'?') || ').', 'sent', now(), new.courier_id);
   end if;
   return new;
 end $$;
@@ -373,10 +383,13 @@ grant execute on function courier_release(uuid, text) to authenticated;
 grant execute on function assign_courier(uuid, uuid) to authenticated;
 grant execute on function reject_role_request(uuid) to authenticated;
 grant execute on function is_courier() to authenticated;
-revoke execute on function courier_board() from anon;
-revoke execute on function courier_claim(uuid) from anon;
-revoke execute on function courier_release(uuid, text) from anon;
-revoke execute on function assign_courier(uuid, uuid) from anon;
+revoke execute on function courier_board() from public, anon;
+revoke execute on function courier_claim(uuid) from public, anon;
+revoke execute on function courier_release(uuid, text) from public, anon;
+revoke execute on function assign_courier(uuid, uuid) from public, anon;
+revoke execute on function reject_role_request(uuid) from public, anon;
+revoke execute on function admin_set_user(uuid, user_role, boolean) from public, anon;
+grant execute on function admin_set_user(uuid, user_role, boolean) to authenticated;
 revoke execute on function require_staff_or_courier(uuid, text) from public, anon, authenticated;
 revoke execute on function orders_courier_notify() from public, anon, authenticated;
 notify pgrst, 'reload schema';

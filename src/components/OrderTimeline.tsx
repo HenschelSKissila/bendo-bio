@@ -25,7 +25,8 @@ function titleFor(h: HistEntry) {
 
 /** Chronologie de la commande vue par le client (date et heure de chaque étape). */
 export default function OrderTimeline({ history, receivedBy, deliveredAt }: { history: HistEntry[]; receivedBy?: string | null; deliveredAt?: string | null }) {
-  if (!history?.length) return null
+  history = (history ?? []).filter(h => !(h.from_status && h.from_status === h.to_status && /^(Livreur retiré|Livraison prise en charge)/.test(h.note ?? '')))
+  if (!history.length) return null
   return (
     <div className="space-y-3">
       {deliveredAt && (

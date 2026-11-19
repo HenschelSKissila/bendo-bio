@@ -55,3 +55,21 @@ select 'JEAN historique', b->'history'->0->>'received_by', b->'stats' from (sele
 -- la cliente voit tout
 reset role;
 select 'CLIENTE', subject from notifications where user_id='33333333-3333-3333-3333-333333333333' order by id;
+-- correctifs revue : annulation notifiée au livreur, pas de doublon « nouvelle livraison », réattribution bloquée
+set role authenticated;
+select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333',false) \g /dev/null
+select place_order(jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id',(select id from products where sku='LEG-OIG-001'),'quantity',3)),
+  'fulfillment','delivery','street','R','city','Pointe-Noire','postal_code','Ngoyo','slot_id',(select id from available_slots('delivery','Ngoyo') limit 1),
+  'payment_method','cash_on_delivery','accept_terms',true,'guest_name','X','guest_phone','06 444 55 66'))->>'id' as o3 \gset
+select set_config('request.jwt.claim.sub','66666666-6666-6666-6666-666666666666',false) \g /dev/null
+select courier_claim(:'o3') \g /dev/null
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false) \g /dev/null
+select set_order_status(:'o3','preparing') \g /dev/null
+select set_order_status(:'o3','confirmed') \g /dev/null
+reset role;
+select 'REVUE courier_new pour o3 (attendu 2 = 1 par livreur)', count(*) from notifications where order_id=:'o3' and event='courier_new';
+set role authenticated;
+select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false) \g /dev/null
+select set_order_status(:'o3','cancelled','Client a annulé') \g /dev/null
+reset role;
+select 'REVUE annulation notifiée à', u.email from notifications n join profiles u on u.id=n.user_id where n.order_id=:'o3' and n.event='courier_cancelled';
