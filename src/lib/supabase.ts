@@ -37,6 +37,7 @@ export function friendlyError(msg: string): string {
   if (/Email not confirmed/i.test(msg)) return 'Adresse e-mail non confirmée : cliquez sur le lien reçu par e-mail.'
   if (/User already registered/i.test(msg)) return 'Un compte existe déjà avec cet e-mail.'
   if (/Password should be/i.test(msg)) return 'Mot de passe trop court (8 caractères minimum).'
+  if (/invalid input value for enum user_role/i.test(msg)) return 'Le rôle « Livreur » n\'existe pas encore dans la base : exécutez le script 008_livreurs.sql dans Supabase.'
   if (/row-level security|permission denied/i.test(msg)) return 'Action non autorisée pour votre rôle.'
   if (/Could not find the function|schema cache/i.test(msg))
     return 'Fonction absente de la base : exécutez le dernier script SQL (voir README), puis rechargez la page.'
