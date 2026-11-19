@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useSyncExternalStore } from 'react'
 import { supabase } from './supabase'
 import type { Product, Category, Stock, Settings } from './types'
 import { setCurrency } from './format'
@@ -23,29 +23,46 @@ export function useRealtime(tables: string[], onChange: () => void, enabled = tr
 }
 
 export type ConnState = 'checking' | 'online' | 'offline' | 'not_initialized'
-/** Vérifie en permanence le lien avec la base (ping toutes les 30 s + temps réel). */
-export function useConnection() {
-  const [state, setState] = useState<ConnState>('checking')
-  const [latency, setLatency] = useState<number | null>(null)
-  const [lastCheck, setLastCheck] = useState<Date | null>(null)
-  const [realtime, setRealtime] = useState<string>('connecting')
-  const check = useCallback(async () => {
+interface ConnSnapshot { state: ConnState; latency: number | null; lastCheck: Date | null; realtime: string }
+
+/** Surveillance unique et partagée du lien avec la base (ping 30 s + websocket temps réel). */
+const conn = (() => {
+  let snap: ConnSnapshot = { state: 'checking', latency: null, lastCheck: null, realtime: 'connecting' }
+  const subs = new Set<() => void>()
+  let timer: ReturnType<typeof setInterval> | undefined
+  let channel: ReturnType<typeof supabase.channel> | undefined
+  const set = (p: Partial<ConnSnapshot>) => { snap = { ...snap, ...p }; subs.forEach(f => f()) }
+  const check = async () => {
     const t0 = performance.now()
     const { error } = await supabase.rpc('ping')
-    setLatency(Math.round(performance.now() - t0)); setLastCheck(new Date())
-    if (!error) setState('online')
-    else if (/does not exist|Could not find the function/i.test(error.message)) setState('not_initialized')
-    else setState('offline')
-  }, [])
-  useEffect(() => {
+    const latency = Math.round(performance.now() - t0)
+    set({ latency, lastCheck: new Date(),
+      state: !error ? 'online' : /does not exist|Could not find the function/i.test(error.message) ? 'not_initialized' : 'offline' })
+  }
+  const onOnline = () => { check() }
+  const onOffline = () => set({ state: 'offline' })
+  const start = () => {
     check()
-    const i = setInterval(check, 30000)
-    const on = () => check()
-    window.addEventListener('online', on); window.addEventListener('offline', () => setState('offline'))
-    const ch = supabase.channel('bendo-heartbeat').subscribe(s => setRealtime(s))
-    return () => { clearInterval(i); window.removeEventListener('online', on); supabase.removeChannel(ch) }
-  }, [check])
-  return { state, latency, lastCheck, realtime, check }
+    timer = setInterval(check, 30000)
+    window.addEventListener('online', onOnline); window.addEventListener('offline', onOffline)
+    channel = supabase.channel('bendo-heartbeat').subscribe(s => set({ realtime: s }))
+  }
+  const stop = () => {
+    clearInterval(timer)
+    window.removeEventListener('online', onOnline); window.removeEventListener('offline', onOffline)
+    if (channel) supabase.removeChannel(channel)
+    channel = undefined
+  }
+  return {
+    subscribe(f: () => void) { subs.add(f); if (subs.size === 1) start(); return () => { subs.delete(f); if (subs.size === 0) stop() } },
+    get: () => snap,
+    check,
+  }
+})()
+
+export function useConnection() {
+  const s = useSyncExternalStore(conn.subscribe, conn.get)
+  return { ...s, check: conn.check }
 }
 
 /** Catalogue public + stock disponible, mis à jour en temps réel. */

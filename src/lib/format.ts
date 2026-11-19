@@ -1,7 +1,7 @@
 import type { OrderStatus, Unit, MovementType } from './types'
 
-let currency = 'EUR'
-export const setCurrency = (c: string) => { currency = c || 'EUR' }
+let currency = 'XAF'
+export const setCurrency = (c: string) => { currency = c || 'XAF' }
 export const money = (n: number | null | undefined) => {
   try { return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(Number(n ?? 0)) }
   catch { return `${Number(n ?? 0).toFixed(2)} ${currency}` }

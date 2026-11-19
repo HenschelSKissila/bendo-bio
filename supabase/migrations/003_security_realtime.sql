@@ -74,7 +74,8 @@ create policy audit_admin_read on audit_log for select using (is_admin());
 create policy jobs_staff_read on job_runs for select using (is_staff());
 
 -- RGPD
-create policy dr_insert on data_requests for insert with check (auth.uid() is not null and user_id = auth.uid());
+create policy dr_insert on data_requests for insert with check (
+  auth.uid() is not null and user_id = auth.uid() and lower(email) = lower(coalesce(auth.jwt()->>'email','')));
 create policy dr_read on data_requests for select using (user_id = auth.uid() or is_admin());
 create policy dr_admin_update on data_requests for update using (is_admin()) with check (is_admin());
 

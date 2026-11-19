@@ -49,9 +49,9 @@ export default function Home() {
 
       <section className="grid gap-3 sm:grid-cols-4">
         {[
-          [Truck, 'Livraison sur créneau', settings?.delivery_info ?? 'Dans nos zones desservies'],
-          [Store, 'Retrait sur place', settings?.pickup_address ?? ''],
-          [Clock, 'Commande simple', 'Prix et frais affichés avant validation'],
+          [Truck, 'Livraison à la demande', 'Aux frais du client, dans les quartiers desservis de Pointe-Noire'],
+          [Store, 'Retrait sur place', settings?.pickup_address || 'Ngoyo centrale, Pointe-Noire'],
+          [Clock, 'Vérifié par nos agents', 'Chaque commande est contrôlée avant la remise'],
           [Leaf, 'Frais & traçable', 'Suivi des lots et des dates limites'],
         ].map(([Icon, t, d]) => {
           const I = Icon as typeof Truck

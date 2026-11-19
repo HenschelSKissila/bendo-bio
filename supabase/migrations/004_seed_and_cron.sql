@@ -29,7 +29,7 @@ join categories c on c.slug = v.cat
 on conflict (sku) do nothing;
 
 insert into delivery_zones (name, postal_codes, fee, min_order, free_above)
-select 'Zone centre (exemple)', array['75001','75002','75003','75004'], 3.50, 15, 60
+select 'Pointe-Noire', array['Lumumba','Mvoumvou','Tié-Tié','Loandjili','Mongo-Mpoukou','Ngoyo'], 1000, 3000, null
 where not exists (select 1 from delivery_zones);
 
 -- Modèle de créneaux : livraison mar–sam 9h-12h et 16h-19h ; retrait mer et sam 10h-13h

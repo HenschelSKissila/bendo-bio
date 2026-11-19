@@ -3,6 +3,7 @@ import { ShoppingBasket, User, LayoutDashboard, Search } from 'lucide-react'
 import { useCart } from '../../lib/cart'
 import { useAuth } from '../../lib/auth'
 import { useSettings } from '../../lib/hooks'
+import { BRAND } from '../../lib/brand'
 
 export default function ShopLayout() {
   const { count } = useCart()
@@ -36,11 +37,16 @@ export default function ShopLayout() {
         <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3">
           <div>
             <div className="font-display text-2xl text-white">Bendo Bio</div>
-            <p className="mt-2 text-brand-200">Produits frais et bio, livrés chez vous ou à retirer sur créneau.</p>
+            <p className="mt-2 text-brand-200">Produits frais et bio, livrés à la demande ou à retirer sur créneau. Chaque commande est vérifiée par nos agents.</p>
           </div>
           <div>
             <div className="font-semibold text-white">Contact</div>
-            <p className="mt-2">{settings?.contact_email}<br />{settings?.contact_phone}</p>
+            <p className="mt-2 space-y-1">
+              <a href={BRAND.phoneHref} className="block hover:underline">📞 {settings?.contact_phone || BRAND.phone}</a>
+              <a href={BRAND.whatsapp} target="_blank" rel="noreferrer" className="block hover:underline">💬 WhatsApp</a>
+              <a href={`mailto:${settings?.contact_email || BRAND.email}`} className="block hover:underline">✉️ {settings?.contact_email || BRAND.email}</a>
+              <span className="block">📍 {settings?.pickup_address || BRAND.address}, {BRAND.country}</span>
+            </p>
           </div>
           <div className="flex flex-col gap-1">
             <Link to="/legal/mentions" className="hover:underline">Mentions légales</Link>
@@ -48,6 +54,9 @@ export default function ShopLayout() {
             <Link to="/legal/confidentialite" className="hover:underline">Politique de confidentialité</Link>
             <Link to="/connexion?staff=1" className="mt-2 text-brand-300 hover:underline">Accès personnel</Link>
           </div>
+        </div>
+        <div className="border-t border-brand-800 px-4 py-4 text-center text-xs text-brand-300">
+          © {BRAND.year} {BRAND.name} — {BRAND.cities}, {BRAND.country}. Tous droits réservés. · Application créée par {BRAND.creator}.
         </div>
       </footer>
     </div>

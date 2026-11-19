@@ -38,7 +38,8 @@ export default function Scanner() {
       setLot(data as Lot)
       p = (await supabase.from('products').select('*').eq('id', (data as Lot).product_id).single()).data as Product
     } else {
-      const sku = v.replace(/^BENDO:PRD:/i, '')
+      const sku = v.replace(/^BENDO:PRD:/i, '').replace(/[,()\s"]/g, '').slice(0, 64)
+      if (!sku) { setErr('Code vide.'); return }
       const { data } = await supabase.from('products').select('*').or(`barcode.eq.${sku},sku.eq.${sku.toUpperCase()}`).limit(1)
       p = (data as Product[])?.[0] ?? null
       if (!p) {

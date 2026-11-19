@@ -20,6 +20,8 @@ grant execute on all functions in schema public to anon, authenticated, service_
 
 -- Fonctions internes : jamais appelables directement depuis l'API
 revoke execute on function commit_order_stock(uuid) from public, anon, authenticated;
+revoke execute on function allocate_item_fefo(uuid, numeric, boolean, text) from public, anon, authenticated;
+revoke execute on function release_item_qty(uuid, numeric, text) from public, anon, authenticated;
 revoke execute on function restock_order(uuid, text) from public, anon, authenticated;
 revoke execute on function recompute_order_totals(uuid) from public, anon, authenticated;
 revoke execute on function open_alert(text, alert_level, text, uuid, uuid, uuid) from public, anon, authenticated;

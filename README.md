@@ -1,4 +1,11 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.1)
+
+**BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
+Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
+
+> **Base déjà installée (scripts 001 à 005 exécutés) ?** Exécutez seulement `supabase/migrations/006_correctifs_congo.sql`
+> dans le SQL Editor : il corrige la réception de stock et les commandes, applique les paramètres Congo (FCFA,
+> Africa/Brazzaville, quartiers de Pointe-Noire, contacts) et les correctifs de la revue de code.
 
 Application web progressive (PWA, installable sur smartphone) conforme au cahier des charges v1.0 :
 boutique publique, commandes, clients, créneaux de livraison/retrait, **stock par lots (FEFO)**,
@@ -22,6 +29,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
    3. `supabase/migrations/003_security_realtime.sql` — sécurité RLS, temps réel, stockage photos
    4. `supabase/migrations/004_seed_and_cron.sql` — catégories, 9 produits d'exemple, zone, créneaux, tâches automatiques
    5. `supabase/migrations/005_grants.sql` — droits d'accès de l'API (**obligatoire** sur les projets Supabase récents, sinon « permission denied for table »)
+   6. `supabase/migrations/006_correctifs_congo.sql` — correctifs + paramètres Congo (Pointe-Noire, FCFA, contacts)
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -106,7 +114,7 @@ par article n'a pas de sens. La solution retenue :
 | §11.2 RGPD | Consentements séparés, demandes accès/rectification/effacement, anonymisation conservant les pièces légales |
 | §11.3 Traçabilité | Lot ↔ commandes (rappel de lot : liste des clients concernés) |
 
-Tests : `supabase/tests/scenario.sql` (à lancer sur une base locale avec `local_auth_stub.sql`, jamais en production).
+Tests : `supabase/tests/scenario.sql` puis `supabase/tests/review_fixes.sql` (base locale préparée avec `local_auth_stub.sql`, qui simule un projet Supabase récent ; jamais en production).
 
 ## 7. Ce qui reste à décider / brancher
 

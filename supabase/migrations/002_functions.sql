@@ -21,6 +21,15 @@ language sql stable security definer set search_path = public as $$
   select coalesce((select role = 'admin' from profiles where id = auth.uid() and active), false)
 $$;
 
+-- Vrai quand l'appel ne vient PAS de l'API (SQL Editor, pg_cron, tâches internes) :
+-- ces contextes sont réservés au propriétaire du projet.
+create or replace function is_backend() returns boolean
+language sql stable as $$
+  select auth.uid() is null and session_user <> 'authenticator'
+     and coalesce(nullif(current_setting('request.jwt.claims', true),'')::jsonb->>'role',
+                  current_setting('request.jwt.claim.role', true), '') not in ('anon','authenticated')
+$$;
+
 create or replace function require_staff() returns void
 language plpgsql stable security definer set search_path = public as $$
 begin
@@ -63,7 +72,7 @@ language plpgsql security definer set search_path = public as $$
 begin
   if (new.role is distinct from old.role or new.active is distinct from old.active
       or new.internal_notes is distinct from old.internal_notes)
-     and not is_admin() and current_setting('bendo.internal', true) is distinct from '1' then
+     and not is_admin() and not is_backend() and current_setting('bendo.internal', true) is distinct from '1' then
     if not (is_staff() and new.role = old.role and new.active = old.active) then
       raise exception 'FORBIDDEN: modification du rôle réservée à l''administrateur';
     end if;
@@ -176,7 +185,7 @@ create trigger settings_touch before update on settings for each row execute fun
 create or replace function guard_product_update() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
-  if not is_admin() and (new.price is distinct from old.price
+  if not is_admin() and not is_backend() and (new.price is distinct from old.price
       or new.tax_rate is distinct from old.tax_rate
       or new.low_threshold is distinct from old.low_threshold
       or new.critical_threshold is distinct from old.critical_threshold) then
@@ -234,9 +243,9 @@ begin
   on conflict do nothing returning id into v_id;
   if v_id is not null and p_level in ('warning','critical') then
     -- une seule notification par ouverture d'alerte (anti-spam §8.1)
-    insert into notifications(event, recipient, channel, subject, body, order_id)
+    insert into notifications(event, recipient, channel, subject, body, order_id, status, sent_at)
     values (p_type, case when p_level = 'critical' then 'admin' else 'staff' end,
-            'dashboard', 'Alerte BENDO BIO', p_msg, p_order);
+            'dashboard', 'Alerte BENDO BIO', p_msg, p_order, 'sent', now());
   end if;
 end $$;
 
@@ -341,7 +350,7 @@ begin
   if p_qty is null or p_qty <= 0 then raise exception 'INVALID_QTY: la quantité doit être positive'; end if;
   if not exists (select 1 from products where id = p_product) then raise exception 'NOT_FOUND: produit'; end if;
   v_num := coalesce(nullif(trim(p_lot_number),''),
-                    'L' || to_char(now() at time zone shop_tz(),'YYMMDD') || '-' || upper(substr(encode(gen_random_bytes(3),'hex'),1,4)));
+                    'L' || to_char(now() at time zone shop_tz(),'YYMMDD') || '-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,4)));
   insert into lots(product_id, lot_number, supplier, received_at, qty_initial, qty_remaining,
                    expiry_date, expiry_kind, unit_cost, notes)
   values (p_product, v_num, p_supplier, coalesce(p_received, (now() at time zone shop_tz())::date), p_qty, p_qty,
@@ -535,7 +544,7 @@ language plpgsql set search_path = public as $$
 declare v text;
 begin
   loop
-    v := 'BB-' || to_char(now(),'YYMMDD') || '-' || upper(substr(encode(gen_random_bytes(4),'hex'),1,6));
+    v := 'BB-' || to_char(now(),'YYMMDD') || '-' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,6));
     exit when not exists (select 1 from orders where order_number = v);
   end loop;
   return v;
@@ -568,31 +577,62 @@ begin
          total = greatest(v_sub + v_fee - discount, 0) where id = p_order;
 end $$;
 
+-- Allocation FEFO d'une quantité pour une ligne de commande (interne).
+-- p_strict = true : erreur si stock insuffisant ; false : prend ce qui est disponible.
+create or replace function allocate_item_fefo(p_item uuid, p_qty numeric, p_strict boolean default true, p_reason text default 'Commande')
+returns numeric language plpgsql security definer set search_path = public as $$
+declare it order_items; l lots; v_need numeric := p_qty; v_take numeric;
+begin
+  select * into it from order_items where id = p_item;
+  for l in select * from lots
+           where product_id = it.product_id and lot_is_sellable(lots)
+           order by expiry_date nulls last, received_at, created_at   -- FEFO puis FIFO
+           for update loop
+    exit when v_need <= 0;
+    v_take := least(v_need, l.qty_remaining);
+    update lots set qty_remaining = qty_remaining - v_take,
+           status = case when qty_remaining - v_take = 0 then 'depleted'::lot_status else status end
+    where id = l.id;
+    insert into order_item_lots(order_item_id, lot_id, quantity) values (it.id, l.id, v_take);
+    insert into stock_movements(lot_id, product_id, type, quantity, reason, order_id, user_id)
+    values (l.id, it.product_id, case when p_reason = 'Commande' then 'sale'::movement_type else 'correction'::movement_type end,
+            -v_take, p_reason, it.order_id, auth.uid());
+    v_need := v_need - v_take;
+  end loop;
+  if v_need > 0 and p_strict then
+    raise exception 'INSUFFICIENT_STOCK: % (manque %)', it.product_name, trim_scale(v_need);
+  end if;
+  return p_qty - greatest(v_need, 0);
+end $$;
+
+-- Remise en stock d'une quantité allouée à une ligne (derniers lots alloués d'abord, interne)
+create or replace function release_item_qty(p_item uuid, p_qty numeric, p_reason text)
+returns void language plpgsql security definer set search_path = public as $$
+declare it order_items; r record; v_left numeric := p_qty; v_back numeric;
+begin
+  select * into it from order_items where id = p_item;
+  for r in select oil.* from order_item_lots oil join lots l on l.id = oil.lot_id
+           where oil.order_item_id = p_item order by l.expiry_date desc nulls first, oil.id desc loop
+    exit when v_left <= 0;
+    v_back := least(v_left, r.quantity);
+    update lots set qty_remaining = qty_remaining + v_back,
+           status = case when status = 'depleted' then 'active'::lot_status else status end where id = r.lot_id;
+    if v_back = r.quantity then delete from order_item_lots where id = r.id;
+    else update order_item_lots set quantity = quantity - v_back where id = r.id; end if;
+    insert into stock_movements(lot_id, product_id, type, quantity, reason, order_id, user_id)
+    values (r.lot_id, it.product_id, 'correction', v_back, p_reason, it.order_id, auth.uid());
+    v_left := v_left - v_back;
+  end loop;
+end $$;
+
 -- Déstockage FEFO (STK-04) — appelé uniquement en interne
 create or replace function commit_order_stock(p_order uuid) returns void
 language plpgsql security definer set search_path = public as $$
-declare it order_items; l lots; v_need numeric; v_take numeric;
+declare it order_items;
 begin
   if (select stock_committed from orders where id = p_order) then return; end if;
   for it in select * from order_items where order_id = p_order and not unavailable order by product_id loop
-    v_need := it.quantity;
-    for l in select * from lots
-             where product_id = it.product_id and lot_is_sellable(lots)
-             order by expiry_date nulls last, received_at, created_at   -- FEFO puis FIFO
-             for update loop
-      exit when v_need <= 0;
-      v_take := least(v_need, l.qty_remaining);
-      update lots set qty_remaining = qty_remaining - v_take,
-             status = case when qty_remaining - v_take = 0 then 'depleted'::lot_status else status end
-      where id = l.id;
-      insert into order_item_lots(order_item_id, lot_id, quantity) values (it.id, l.id, v_take);
-      insert into stock_movements(lot_id, product_id, type, quantity, reason, order_id, user_id)
-      values (l.id, it.product_id, 'sale', -v_take, 'Commande', p_order, auth.uid());
-      v_need := v_need - v_take;
-    end loop;
-    if v_need > 0 then
-      raise exception 'INSUFFICIENT_STOCK: % (manque %)', it.product_name, v_need;
-    end if;
+    perform allocate_item_fefo(it.id, it.quantity, true, 'Commande');
   end loop;
   update orders set stock_committed = true, reserved_until = null where id = p_order;
 end $$;
@@ -685,7 +725,13 @@ begin
     select * into pr from products where id = it.product_id for update;
     if not found or pr.status <> 'active' then raise exception 'PRODUCT_UNAVAILABLE: produit indisponible'; end if;
     if it.qty is null or it.qty <= 0 or it.qty < pr.min_qty then
-      raise exception 'INVALID_QTY: quantité minimale % pour %', pr.min_qty, pr.name;
+      raise exception 'INVALID_QTY: quantité minimale % pour %', trim_scale(pr.min_qty), pr.name;
+    end if;
+    if pr.unit not in ('kg','g','l') and it.qty <> trunc(it.qty) then
+      raise exception 'INVALID_QTY: % se vend à l''unité (quantité entière)', pr.name;
+    end if;
+    if abs(mod(it.qty - pr.min_qty, pr.qty_step)) > 0.0001 then
+      raise exception 'INVALID_QTY: % se commande par multiples de % %', pr.name, trim_scale(pr.qty_step), pr.unit;
     end if;
     v_av := coalesce(product_available(pr.id), 0);
     if it.qty > v_av then
@@ -715,8 +761,8 @@ begin
     values (v_order, null, 'confirmed', 'Commande confirmée — paiement à la remise', v_uid);
     perform enqueue_order_notification(v_order, 'order_confirmed', 'Votre commande ' || v_number || ' est confirmée',
       'Merci pour votre commande BENDO BIO. Nous la préparons pour le créneau choisi.');
-    insert into notifications(event, recipient, channel, order_id, subject, body)
-    values ('new_order','staff','dashboard', v_order, 'Nouvelle commande ' || v_number, 'Nouvelle commande confirmée');
+    insert into notifications(event, recipient, channel, order_id, subject, body, status, sent_at)
+    values ('new_order','staff','dashboard', v_order, 'Nouvelle commande ' || v_number, 'Nouvelle commande confirmée', 'sent', now());
   end if;
 
   if v_uid is not null and v_ff = 'delivery' and coalesce((p->>'save_address')::boolean,false)
@@ -760,10 +806,13 @@ create or replace function confirm_payment(p_order uuid, p_provider text default
 returns jsonb language plpgsql security definer set search_path = public as $$
 declare o orders; v_ref text;
 begin
+  -- personnel connecté, OU clé serveur (webhook prestataire), OU tâche interne (SQL Editor / pg_cron)
   if auth.uid() is not null then perform require_staff();
-  elsif current_user not in ('postgres','service_role','supabase_admin') and session_user not in ('postgres','supabase_admin')
-        and coalesce(current_setting('request.jwt.claim.role', true), '') <> 'service_role' then
-    raise exception 'FORBIDDEN';
+  elsif coalesce(nullif(current_setting('request.jwt.claims', true),'')::jsonb->>'role',
+                 current_setting('request.jwt.claim.role', true), '') = 'service_role' then null;
+  elsif session_user = 'authenticator' or coalesce(nullif(current_setting('request.jwt.claims', true),'')::jsonb->>'role',
+                 current_setting('request.jwt.claim.role', true), '') in ('anon','authenticated') then
+    raise exception 'FORBIDDEN: accès réservé au personnel' using errcode = '42501';
   end if;
   select * into o from orders where id = p_order for update;
   if not found then raise exception 'NOT_FOUND: commande'; end if;
@@ -874,7 +923,7 @@ end $$;
 create or replace function update_order_item(p_item uuid, p_picked boolean default null,
   p_actual_weight numeric default null, p_unavailable boolean default null, p_note text default null)
 returns void language plpgsql security definer set search_path = public as $$
-declare it order_items; o orders; r record;
+declare it order_items; o orders; v_diff numeric; v_got numeric;
 begin
   perform require_staff();
   select * into it from order_items where id = p_item for update;
@@ -884,23 +933,34 @@ begin
     raise exception 'INVALID_STATE: modification possible uniquement avant la fin de la préparation';
   end if;
   if p_picked is not null then update order_items set picked = p_picked where id = p_item; end if;
-  if p_actual_weight is not null then
+
+  if p_actual_weight is not null and not it.unavailable then
     if p_actual_weight <= 0 then raise exception 'INVALID_QTY'; end if;
     update order_items set actual_weight = p_actual_weight, line_total = round(unit_price * p_actual_weight, 2) where id = p_item;
+    -- le stock suit le poids réel (écart par rapport à ce qui a déjà été sorti)
+    if o.stock_committed then
+      v_diff := p_actual_weight - coalesce(it.actual_weight, it.quantity);
+      if v_diff > 0 then
+        perform allocate_item_fefo(p_item, v_diff, false, 'Poids réel pesé (+' || trim_scale(v_diff) || ')');
+      elsif v_diff < 0 then
+        perform release_item_qty(p_item, -v_diff, 'Poids réel pesé (' || trim_scale(v_diff) || ')');
+      end if;
+    end if;
   end if;
+
   if p_unavailable is not null and p_unavailable <> it.unavailable then
     if coalesce(length(trim(p_note)),0) < 3 then raise exception 'REASON_REQUIRED: motif obligatoire'; end if;
-    update order_items set unavailable = p_unavailable where id = p_item;
-    if p_unavailable and o.stock_committed then
-      -- les quantités allouées à cette ligne ne sortent pas : correction sur les lots
-      for r in select * from order_item_lots where order_item_id = p_item loop
-        update lots set qty_remaining = qty_remaining + r.quantity,
-               status = case when status = 'depleted' then 'active'::lot_status else status end where id = r.lot_id;
-        insert into stock_movements(lot_id, product_id, type, quantity, reason, order_id, user_id)
-        values (r.lot_id, it.product_id, 'correction', r.quantity, 'Ligne retirée : ' || p_note, o.id, auth.uid());
-      end loop;
-      delete from order_item_lots where order_item_id = p_item;
+    if o.stock_committed then
+      if p_unavailable then
+        -- la ligne ne sort pas : tout ce qui lui était alloué revient dans les lots
+        perform release_item_qty(p_item, coalesce((select sum(quantity) from order_item_lots where order_item_id = p_item), 0),
+                                 'Ligne retirée : ' || p_note);
+      else
+        -- ligne rétablie : nouvelle sortie FEFO (erreur si le stock ne suffit plus)
+        perform allocate_item_fefo(p_item, coalesce(it.actual_weight, it.quantity), true, 'Ligne rétablie : ' || p_note);
+      end if;
     end if;
+    update order_items set unavailable = p_unavailable where id = p_item;
     insert into order_status_history(order_id, from_status, to_status, note, user_id)
     values (o.id, o.status, o.status, format('Ligne « %s » %s : %s', it.product_name,
             case when p_unavailable then 'retirée' else 'rétablie' end, p_note), auth.uid());
@@ -948,10 +1008,14 @@ language sql stable security definer set search_path = public as $$
   from orders o left join slots s on s.id = o.slot_id
   left join profiles pr on pr.id = o.customer_id
   where upper(o.order_number) = upper(trim(p_number))
-    and (lower(trim(p_contact)) in (lower(coalesce(o.guest_email,'')), lower(coalesce(pr.email,'')))
-         or regexp_replace(p_contact,'\D','','g') in (regexp_replace(coalesce(o.guest_phone,''),'\D','','g'),
-                                                     regexp_replace(coalesce(pr.phone,''),'\D','','g')))
-    and length(trim(p_contact)) >= 4
+    and (
+      (position('@' in p_contact) > 0
+        and lower(trim(p_contact)) in (lower(coalesce(o.guest_email,'#')), lower(coalesce(pr.email,'#'))))
+      or (length(regexp_replace(p_contact,'\D','','g')) >= 6
+        and right(regexp_replace(p_contact,'\D','','g'), 8) in (
+              nullif(right(regexp_replace(coalesce(o.guest_phone,''),'\D','','g'), 8), ''),
+              nullif(right(regexp_replace(coalesce(pr.phone,''),'\D','','g'), 8), '')))
+    )
 $$;
 
 -- ---------------------------------------------------------------------
@@ -1077,7 +1141,7 @@ begin
       'open_alerts', (select count(*) from alerts where status = 'open'),
       'future_slots', (select count(*) from slots where starts_at > now())),
     'notifications', jsonb_build_object(
-      'pending', (select count(*) from notifications where status = 'pending'),
+      'pending', (select count(*) from notifications where status = 'pending' and channel <> 'dashboard'),
       'failed', (select count(*) from notifications where status = 'failed'),
       'sent', (select count(*) from notifications where status = 'sent')),
     'last_job', (select jsonb_build_object('ran_at', ran_at, 'details', details) from job_runs order by ran_at desc limit 1),
@@ -1102,7 +1166,8 @@ begin
            marketing_consent = false, sms_consent = false, active = false where id = r.user_id;
   end if;
   update orders set guest_name = 'Client supprimé', guest_phone = null, guest_email = null, address_instructions = null
-  where lower(guest_email) = lower(r.email) and status in ('delivered','cancelled','refunded');
+  where lower(guest_email) = lower(coalesce((select email from auth.users where id = r.user_id), r.email))
+    and status in ('delivered','cancelled','refunded');
   update data_requests set status = 'done', handled_by = auth.uid(), handled_at = now() where id = p_request;
 end $$;
 
@@ -1110,6 +1175,8 @@ end $$;
 -- Droits d'exécution : fonctions internes non exposées à l'API
 -- ---------------------------------------------------------------------
 revoke execute on function commit_order_stock(uuid) from public, anon, authenticated;
+revoke execute on function allocate_item_fefo(uuid, numeric, boolean, text) from public, anon, authenticated;
+revoke execute on function release_item_qty(uuid, numeric, text) from public, anon, authenticated;
 revoke execute on function restock_order(uuid, text) from public, anon, authenticated;
 revoke execute on function recompute_order_totals(uuid) from public, anon, authenticated;
 revoke execute on function open_alert(text, alert_level, text, uuid, uuid, uuid) from public, anon, authenticated;

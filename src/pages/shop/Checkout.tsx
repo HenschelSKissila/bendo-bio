@@ -7,7 +7,7 @@ import { useSettings } from '../../lib/hooks'
 import { money, fmtTime, PAYMENT_LABEL } from '../../lib/format'
 import type { Fulfillment } from '../../lib/types'
 import { useCartDetails } from './Cart'
-import { Button, Card, Field, Input, Textarea, ErrorBox, Spinner, Empty } from '../../components/ui'
+import { Button, Card, Field, Input, Select, Textarea, ErrorBox, Spinner, Empty } from '../../components/ui'
 
 interface ZoneCheck { ok: boolean; zone_id?: string; name?: string; fee?: number; min_order?: number; free_above?: number | null }
 interface AvSlot { id: string; starts_at: string; ends_at: string; remaining: number }
@@ -19,7 +19,7 @@ export default function Checkout() {
   const { settings } = useSettings()
   const { cart, cat, rows, subtotal, hasProblem } = useCartDetails()
   const [ff, setFf] = useState<Fulfillment>('delivery')
-  const [f, setF] = useState({ name: '', email: '', phone: '', street: '', city: '', postal: '', instructions: '', note: '' })
+  const [f, setF] = useState({ name: '', email: '', phone: '', street: '', city: 'Pointe-Noire', postal: '', instructions: '', note: '' })
   const [zone, setZone] = useState<ZoneCheck | null>(null)
   const [slots, setSlots] = useState<AvSlot[] | null>(null)
   const [slot, setSlot] = useState<string>('')
@@ -27,6 +27,7 @@ export default function Checkout() {
   const [terms, setTerms] = useState(false)
   const [saveAddr, setSaveAddr] = useState(true)
   const [addrs, setAddrs] = useState<Addr[]>([])
+  const [areas, setAreas] = useState<{ name: string; zone: string }[]>([])
   const [err, setErr] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const up = (k: keyof typeof f) => (e: { target: { value: string } }) => setF(s => ({ ...s, [k]: e.target.value }))
@@ -36,9 +37,15 @@ export default function Checkout() {
     if (session) supabase.from('addresses').select('*').eq('user_id', session.user.id).then(({ data }) => setAddrs((data as Addr[]) ?? []))
   }, [profile, session])
 
-  // vérification de zone dès que le code postal est saisi
+  // quartiers desservis (zones actives)
   useEffect(() => {
-    if (ff !== 'delivery' || f.postal.trim().length < 3) { setZone(null); return }
+    supabase.from('delivery_zones').select('name, postal_codes').eq('active', true).then(({ data }) =>
+      setAreas(((data as { name: string; postal_codes: string[] }[]) ?? []).flatMap(z => z.postal_codes.map(q => ({ name: q, zone: z.name })))))
+  }, [])
+
+  // vérification de zone dès que le quartier est choisi
+  useEffect(() => {
+    if (ff !== 'delivery' || f.postal.trim().length < 2) { setZone(null); return }
     const t = setTimeout(() => rpc<ZoneCheck>('check_zone', { p_postal: f.postal }).then(setZone).catch(() => setZone(null)), 350)
     return () => clearTimeout(t)
   }, [f.postal, ff])
@@ -131,10 +138,15 @@ export default function Checkout() {
                 </div>
               )}
               <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
-                <Field label="Rue / quartier" required><Input value={f.street} onChange={up('street')} autoComplete="street-address" /></Field>
-                <Field label="Code postal" required error={zone && !zone.ok ? 'Adresse hors zone desservie. Choisissez le retrait sur place.' : null}
-                  hint={zone?.ok ? `✓ ${zone.name} — livraison ${money(zone.fee)}${zone.free_above ? `, offerte dès ${money(zone.free_above)}` : ''}` : undefined}>
-                  <Input value={f.postal} onChange={up('postal')} autoComplete="postal-code" inputMode="numeric" />
+                <Field label="Rue / avenue, n° de parcelle" required><Input value={f.street} onChange={up('street')} autoComplete="street-address" /></Field>
+                <Field label="Quartier / arrondissement" required error={zone && !zone.ok ? 'Quartier non desservi. Choisissez le retrait sur place ou appelez-nous.' : null}
+                  hint={zone?.ok ? `✓ ${zone.name} — livraison ${money(zone.fee)} (à la charge du client)${zone.free_above ? `, offerte dès ${money(zone.free_above)}` : ''}` : undefined}>
+                  {areas.length > 0 ? (
+                    <Select value={f.postal} onChange={up('postal')}>
+                      <option value="">— choisir —</option>
+                      {areas.map(a => <option key={`${a.zone}-${a.name}`} value={a.name}>{a.name} ({a.zone})</option>)}
+                    </Select>
+                  ) : <Input value={f.postal} onChange={up('postal')} />}
                 </Field>
                 <Field label="Ville" required><Input value={f.city} onChange={up('city')} autoComplete="address-level2" /></Field>
                 <Field label="Instructions (interphone, étage…)"><Input value={f.instructions} onChange={up('instructions')} /></Field>
@@ -146,7 +158,7 @@ export default function Checkout() {
 
         <Card>
           <h2 className="mb-3 font-bold">3. Créneau de {ff === 'delivery' ? 'livraison' : 'retrait'}</h2>
-          {ff === 'delivery' && !zone?.ok ? <p className="text-sm text-gray-500">Saisissez un code postal desservi pour voir les créneaux.</p>
+          {ff === 'delivery' && !zone?.ok ? <p className="text-sm text-gray-500">Choisissez votre quartier pour voir les créneaux.</p>
             : slots === null ? <Spinner label="Recherche des créneaux…" />
             : slots.length === 0 ? <p className="text-sm text-gray-600">Aucun créneau disponible pour le moment. Réessayez plus tard ou contactez-nous.</p>
             : <div className="space-y-3">
@@ -175,7 +187,7 @@ export default function Checkout() {
               <span className="font-medium">{PAYMENT_LABEL[k]}</span>
             </label>
           ))}
-          <p className="text-xs text-gray-500">Le paiement en ligne par carte sera activé dès le choix du prestataire de paiement.</p>
+          <p className="text-xs text-gray-500">Paiement à la remise, après vérification de votre commande. Livraison à la demande et aux frais du client.</p>
           <Field label="Message pour l'équipe (optionnel)"><Textarea value={f.note} onChange={up('note')} rows={2} /></Field>
         </Card>
       </div>

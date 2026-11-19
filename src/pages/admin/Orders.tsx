@@ -25,7 +25,7 @@ export default function Orders() {
     if (ff) r = r.eq('fulfillment', ff)
     if (from) r = r.gte('created_at', from)
     if (q.trim()) {
-      const s = q.trim().replace(/[,()]/g, ' ')
+      const s = q.trim().replace(/[,()*%\\]/g, ' ').slice(0, 60)
       r = r.or(`order_number.ilike.%${s}%,guest_name.ilike.%${s}%,guest_phone.ilike.%${s}%,guest_email.ilike.%${s}%`)
     }
     const { data } = await r

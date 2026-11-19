@@ -16,7 +16,7 @@ export default function Zones() {
     setErr(null)
     try {
       const payload = { name: edit.name, fee: Number(edit.fee ?? 0), min_order: Number(edit.min_order ?? 0), free_above: edit.free_above ? Number(edit.free_above) : null,
-        active: edit.active ?? true, postal_codes: (edit.codes ?? '').split(/[\s,;]+/).map(s => s.trim()).filter(Boolean) }
+        active: edit.active ?? true, postal_codes: (edit.codes ?? '').split(/[,;\n]+/).map(s => s.trim()).filter(Boolean) }
       if (!payload.name) throw new Error('Nom obligatoire')
       const r = edit.id ? await supabase.from('delivery_zones').update(payload).eq('id', edit.id) : await supabase.from('delivery_zones').insert(payload)
       if (r.error) throw new Error(r.error.message)
@@ -27,7 +27,7 @@ export default function Zones() {
     <div className="space-y-4">
       <div className="flex items-center"><h1 className="text-2xl font-bold text-brand-900">Zones de livraison</h1>
         <Button className="ml-auto" onClick={() => setEdit({ codes: '', fee: 0, min_order: 0, active: true })}><Plus className="h-4 w-4" />Nouvelle zone</Button></div>
-      <p className="text-sm text-gray-600">Une adresse est desservie si son code postal (ou code de quartier) figure dans une zone active. Les frais et le minimum de commande s'appliquent automatiquement.</p>
+      <p className="text-sm text-gray-600">Le client choisit son quartier dans la liste des zones actives. Les frais de livraison (à la charge du client) et le minimum de commande s'appliquent automatiquement.</p>
       {!zones ? <Spinner /> : (
         <div className="grid gap-3 md:grid-cols-2">
           {zones.map(z => (
@@ -44,7 +44,7 @@ export default function Zones() {
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? 'Modifier la zone' : 'Nouvelle zone'}>
         {edit && <div className="space-y-3">
           <Field label="Nom" required><Input value={edit.name ?? ''} onChange={e => setEdit({ ...edit, name: e.target.value })} /></Field>
-          <Field label="Codes postaux / quartiers" hint="Séparés par des virgules ou espaces"><Input value={edit.codes} onChange={e => setEdit({ ...edit, codes: e.target.value })} /></Field>
+          <Field label="Quartiers / arrondissements desservis" hint="Séparés par des virgules (ex. Lumumba, Mvoumvou, Tié-Tié)"><Input value={edit.codes} onChange={e => setEdit({ ...edit, codes: e.target.value })} /></Field>
           <div className="grid grid-cols-3 gap-2">
             <Field label="Frais"><Input type="number" step="0.01" value={edit.fee ?? 0} onChange={e => setEdit({ ...edit, fee: parseFloat(e.target.value) })} /></Field>
             <Field label="Minimum"><Input type="number" step="0.01" value={edit.min_order ?? 0} onChange={e => setEdit({ ...edit, min_order: parseFloat(e.target.value) })} /></Field>

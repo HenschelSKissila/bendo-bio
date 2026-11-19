@@ -38,9 +38,11 @@ export function friendlyError(msg: string): string {
   if (/User already registered/i.test(msg)) return 'Un compte existe déjà avec cet e-mail.'
   if (/Password should be/i.test(msg)) return 'Mot de passe trop court (8 caractères minimum).'
   if (/row-level security|permission denied/i.test(msg)) return 'Action non autorisée pour votre rôle.'
-  if (/function .* does not exist|Could not find the function/i.test(msg))
-    return 'La base de données n\'est pas initialisée : exécutez les scripts SQL (voir README).'
-  const m = msg.match(/^([A-Z_]+):\s*(.*)$/)
+  if (/Could not find the function|schema cache/i.test(msg))
+    return 'Fonction absente de la base : exécutez le dernier script SQL (voir README), puis rechargez la page.'
+  if (/function .* does not exist/i.test(msg))
+    return `Erreur technique de la base (${msg}). Exécutez le dernier script SQL de mise à jour.`
+  const m = msg.match(/^([A-Z_]+):\s*([\s\S]*)$/)
   if (m) return m[2] || CODES[m[1]] || m[1]
   return msg
 }

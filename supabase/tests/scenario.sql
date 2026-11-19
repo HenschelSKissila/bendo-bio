@@ -25,10 +25,10 @@ do $$ begin update products set price = 1 where sku='LEG-TOM-001'; raise notice 
 select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333',false) \g /dev/null
 select 'clientsees lots?', count(*) from lots;
 select id as slot from slots where type='delivery' and starts_at > now() + interval '1 day' order by starts_at limit 1 \gset
-select 'avail slots', count(*) from available_slots('delivery','75001');
-select 'zone', check_zone('75 001');
+select 'avail slots', count(*) from available_slots('delivery','Lumumba');
+select 'zone', check_zone('lumumba');
 select place_order(jsonb_build_object('items', jsonb_build_array(jsonb_build_object('product_id',(select id from products where sku='LEG-TOM-001'),'quantity',4)),
-  'fulfillment','delivery','street','1 rue A','city','Paris','postal_code','75001','slot_id',:'slot','payment_method','cash_on_delivery','accept_terms',true,'guest_phone','0600000000','save_address',true)) as o1 \gset
+  'fulfillment','delivery','street','1 rue A','city','Paris','postal_code','Lumumba','slot_id',:'slot','payment_method','cash_on_delivery','accept_terms',true,'guest_phone','0600000000','save_address',true)) as o1 \gset
 select 'order1', :'o1';
 select 'my orders', order_number, status, subtotal, delivery_fee, total, stock_committed from orders;
 reset role;

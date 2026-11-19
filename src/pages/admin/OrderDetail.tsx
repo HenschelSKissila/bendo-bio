@@ -37,11 +37,14 @@ export default function OrderDetail() {
   const [moveOpen, setMoveOpen] = useState(false)
   const [slots, setSlots] = useState<Slot[]>([])
   const [internal, setInternal] = useState('')
+  const [agent, setAgent] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('orders').select('*').eq('id', id).maybeSingle()
     const ord = data as Order | null; setO(ord); setInternal(ord?.internal_note ?? '')
     if (!ord) return
+    if (ord.assigned_to) supabase.from('profiles').select('full_name, email').eq('id', ord.assigned_to).maybeSingle()
+      .then(({ data }) => setAgent(data ? (data.full_name || data.email) : null))
     const [it, h, s] = await Promise.all([
       supabase.from('order_items').select('*').eq('order_id', ord.id).order('product_name'),
       supabase.from('order_status_history').select('*').eq('order_id', ord.id).order('created_at', { ascending: false }),
@@ -166,6 +169,7 @@ export default function OrderDetail() {
               {o.address_instructions && <div className="rounded-lg bg-amber-50 p-2 text-amber-900">📝 {o.address_instructions}</div>}
               <a className="text-brand-700 underline print:hidden" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.address_street} ${o.address_postal_code} ${o.address_city}`)}`}>Ouvrir l'itinéraire</a>
             </>}
+            <div className="text-xs">{agent ? <>✅ Préparée et vérifiée par <strong>{agent}</strong></> : <span className="text-orange-700">⏳ Pas encore vérifiée par un agent</span>}</div>
             {o.departed_at && <div className="text-xs text-gray-500">Départ : {fmtDateTime(o.departed_at)}</div>}
             {o.delivered_at && <div className="text-xs text-gray-500">Remise : {fmtDateTime(o.delivered_at)}</div>}
             {o.failure_reason && <div className="text-xs text-tomato">Échec : {o.failure_reason}</div>}

@@ -7,7 +7,7 @@ import { num, UNIT_LABEL, fmtDay, fmtDateTime, daysUntil, MOVEMENT_LABEL, today 
 import { downloadCsv } from '../../lib/csv'
 import type { Lot, Product, Movement, Stock as StockT } from '../../lib/types'
 import LotActionModal, { type LotAction } from '../../components/LotActions'
-import { printLabels } from '../../components/QrLabel'
+import { printLabels, type LabelData } from '../../components/QrLabel'
 import { stockTone } from './Products'
 import { Button, Card, Field, Input, Select, Textarea, ErrorBox, SuccessBox, Spinner, Badge, Empty } from '../../components/ui'
 
@@ -115,16 +115,16 @@ export function Reception({ products, onDone, presetProduct }: { products: Produ
   const [err, setErr] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [printAfter, setPrintAfter] = useState(true)
+  const [lastLabel, setLastLabel] = useState<LabelData | null>(null)
   const p = products.find(x => x.id === f.product)
   async function submit(e: React.FormEvent) {
-    e.preventDefault(); setErr(null); setOk(null); setBusy(true)
+    e.preventDefault(); setErr(null); setOk(null); setLastLabel(null); setBusy(true)
     try {
       const id = await rpc<string>('receive_stock', { p_product: f.product, p_qty: parseFloat(f.qty), p_lot_number: f.lot || null, p_expiry: f.expiry || null,
         p_expiry_kind: f.kind, p_supplier: f.supplier || null, p_unit_cost: f.cost ? parseFloat(f.cost) : null, p_received: f.received || null, p_notes: f.notes || null })
       const { data: lot } = await supabase.from('lots').select('*').eq('id', id).single()
       setOk(`Réception enregistrée : ${f.qty} ${p ? UNIT_LABEL[p.unit] : ''} de ${p?.name} (lot ${(lot as Lot)?.lot_number}). Stock et alertes mis à jour.`)
-      if (printAfter && lot) printLabels([{ id, product: p?.name ?? '', lot: (lot as Lot).lot_number, expiry: f.expiry ? fmtDay(f.expiry) : null, kind: f.kind, qty: `${f.qty} ${p ? UNIT_LABEL[p.unit] : ''}`, received: fmtDay(f.received) }])
+      if (lot) setLastLabel({ id, product: p?.name ?? '', lot: (lot as Lot).lot_number, expiry: f.expiry ? fmtDay(f.expiry) : null, kind: f.kind, qty: `${f.qty} ${p ? UNIT_LABEL[p.unit] : ''}`, received: fmtDay(f.received) })
       setF({ ...empty, supplier: f.supplier, received: f.received }); onDone()
     } catch (e) { setErr(errMsg(e)) } finally { setBusy(false) }
   }
@@ -143,8 +143,8 @@ export function Reception({ products, onDone, presetProduct }: { products: Produ
           <Field label="Coût unitaire (achat)"><Input type="number" step="0.01" min="0" value={f.cost} onChange={e => setF({ ...f, cost: e.target.value })} /></Field>
           <Field label="Notes (température, état…)"><Textarea rows={1} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></Field>
         </div>
-        <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-brand-700" checked={printAfter} onChange={e => setPrintAfter(e.target.checked)} />Imprimer l'étiquette QR du lot après validation</label>
         <ErrorBox>{err}</ErrorBox><SuccessBox>{ok}</SuccessBox>
+        {lastLabel && <Button type="button" variant="secondary" onClick={() => printLabels([lastLabel])}><Printer className="h-4 w-4" />Imprimer l'étiquette QR de ce lot</Button>}
         <Button type="submit" loading={busy}>Valider l'entrée</Button>
       </form>
     </Card>

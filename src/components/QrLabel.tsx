@@ -15,9 +15,12 @@ export interface LabelData { id: string; product: string; lot: string; expiry?: 
 
 /** Ouvre une fenêtre d'impression d'étiquettes (format 62 mm, imprimante thermique ou A4). */
 export async function printLabels(labels: LabelData[]) {
-  const imgs = await Promise.all(labels.map(l => QRCode.toDataURL(lotQrValue(l.id), { width: 300, margin: 1 })))
+  // ouverture synchrone dans le clic : sinon Safari/iOS bloque la fenêtre
   const w = window.open('', '_blank', 'width=800,height=900')
   if (!w) { alert('Autorisez les fenêtres pop-up pour imprimer.'); return }
+  w.document.write('<p style="font-family:sans-serif">Préparation des étiquettes…</p>')
+  const imgs = await Promise.all(labels.map(l => QRCode.toDataURL(lotQrValue(l.id), { width: 300, margin: 1 })))
+  w.document.open()
   const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!))
   w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Étiquettes lots</title><style>
     body{font-family:system-ui,sans-serif;margin:0;padding:8px}
