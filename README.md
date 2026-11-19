@@ -1,4 +1,4 @@
-# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.2)
+# BENDO BIO — Boutique en ligne & gestion opérationnelle (v1.3)
 
 **BENDO BIO** — Ngoyo centrale, Pointe-Noire, République du Congo · 📞 +242 06 606 70 58 · ✉️ bendobio@gmail.com
 Application créée par **Henschel**. © BENDO BIO — tous droits réservés.
@@ -35,6 +35,7 @@ alertes automatiques, rapports/exports CSV, rôles Client / Employé / Administr
    6. `supabase/migrations/006_correctifs_congo.sql` — correctifs + paramètres Congo (Pointe-Noire, FCFA, contacts)
    7. `supabase/migrations/007_notifications_qr.sql` — notifications clients, suivi de livraison, QR de traçabilité
    8. `supabase/migrations/008_livreurs.sql` — rôle livreur et demandes d'accès (à exécuter **séparément** du 007)
+   9. `supabase/migrations/009_compteurs_menu.sql` — compteurs de nouveautés dans le menu de gestion
    
    Les scripts sont ré-exécutables sans risque.
 3. *(Recommandé)* **Database → Extensions → pg_cron** : activez-la **avant** le script 004 (ou ré-exécutez 004 après).
@@ -165,3 +166,12 @@ traçabilité du lot (produit, lot, date limite, origine, conservation). Un empl
 actions de stock. Formats : étiquette QR (bac, cagette, sachet), étiquette simple sans QR (logo + référence +
 date limite) et étiquette colis (QR de suivi pour le client). Les produits en vrac ne sont pas étiquetés
 individuellement : on étiquette le contenant du lot.
+
+## 11. Compteurs du menu de gestion
+
+Chaque rubrique du panneau de gauche affiche des pastilles : **rouge** = nouveau depuis votre dernière visite
+(commandes, clients inscrits, articles ajoutés, réceptions de stock), **orange** = à traiter (commandes à
+préparer, demandes d'accès livreur/gestionnaire, alertes, demandes RGPD). Les compteurs sont propres à chaque
+membre de l'équipe, enregistrés en base (identiques sur ordinateur et téléphone) et mis à jour en temps réel.
+La page « Aujourd'hui » résume « Depuis votre dernière visite » et « À traiter » ; les nouveaux éléments sont
+marqués « Nouveau » dans les listes. Chaque nouvelle inscription déclenche aussi une notification à l'équipe.

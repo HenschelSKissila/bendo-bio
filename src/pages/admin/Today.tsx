@@ -6,6 +6,7 @@ import { useRealtime } from '../../lib/hooks'
 import { money, fmtTime, today } from '../../lib/format'
 import type { Order, Slot, Alert } from '../../lib/types'
 import { Card, Stat, StatusBadge, Spinner, Empty, Badge } from '../../components/ui'
+import { useStaffBadges } from '../../lib/staffBadges'
 
 type OrderRow = Order & { slots: Pick<Slot, 'starts_at' | 'ends_at'> | null }
 export const ALERT_CLS = { info: 'bg-blue-100 text-blue-800', warning: 'bg-orange-100 text-orange-800', critical: 'bg-red-100 text-red-800' }
@@ -13,6 +14,7 @@ export const ALERT_ICON = { info: 'ℹ️', warning: '⚠️', critical: '⛔' }
 
 export default function Today() {
   const [orders, setOrders] = useState<OrderRow[] | null>(null)
+  const { b } = useStaffBadges()
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [stats, setStats] = useState<{ revenue: number; orders: number; avg_basket: number; cancelled: number } | null>(null)
   const load = useCallback(async () => {
@@ -41,6 +43,38 @@ export default function Today() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-brand-900">Aujourd'hui <span className="text-base font-normal text-gray-500">{now.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</span></h1>
+      {b && (() => {
+        const news = [
+          { n: b.new_orders, label: 'nouvelle(s) commande(s)', to: '/admin/commandes', icon: '🛒' },
+          { n: b.new_customers, label: 'nouveau(x) client(s) inscrit(s)', to: '/admin/clients', icon: '👤' },
+          { n: b.new_products, label: 'nouvel(s) article(s) ajouté(s)', to: '/admin/produits', icon: '🥬' },
+          { n: b.new_lots, label: 'réception(s) de stock', to: '/admin/stock', icon: '📦' },
+        ].filter(x => x.n > 0)
+        const todo = [
+          { n: b.role_requests, label: 'demande(s) d\'accès livreur / gestionnaire à valider', to: '/admin/utilisateurs', icon: '🛵' },
+          { n: b.unassigned_deliveries, label: 'livraison(s) sans livreur', to: '/admin/commandes', icon: '🚚' },
+          { n: b.pending_payment, label: 'commande(s) en attente de paiement', to: '/admin/commandes', icon: '💳' },
+          { n: b.critical_alerts, label: 'alerte(s) critique(s)', to: '/admin/alertes', icon: '⛔' },
+          { n: b.data_requests, label: 'demande(s) RGPD', to: '/admin/clients', icon: '🔒' },
+        ].filter(x => x.n > 0)
+        if (!news.length && !todo.length) return null
+        return (
+          <Card className="grid gap-4 border-brand-200 bg-brand-50/50 md:grid-cols-2">
+            <div>
+              <h2 className="mb-2 font-bold text-brand-900">Depuis votre dernière visite</h2>
+              {news.length ? <ul className="space-y-1">{news.map(x => <li key={x.label}><Link to={x.to} className="flex items-center gap-2 text-sm hover:underline">
+                <span>{x.icon}</span><span className="min-w-[1.6rem] rounded-full bg-tomato px-1.5 text-center text-xs font-bold text-white">{x.n}</span>{x.label}</Link></li>)}</ul>
+                : <p className="text-sm text-gray-500">Rien de nouveau.</p>}
+            </div>
+            <div>
+              <h2 className="mb-2 font-bold text-brand-900">À traiter</h2>
+              {todo.length ? <ul className="space-y-1">{todo.map(x => <li key={x.label}><Link to={x.to} className="flex items-center gap-2 text-sm hover:underline">
+                <span>{x.icon}</span><span className="min-w-[1.6rem] rounded-full bg-amber-400 px-1.5 text-center text-xs font-bold text-amber-950">{x.n}</span>{x.label}</Link></li>)}</ul>
+                : <p className="text-sm text-gray-500">Rien en attente 🎉</p>}
+            </div>
+          </Card>
+        )
+      })()}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="À préparer" value={toPrepare.length} icon={<ClipboardList className="h-4 w-4" />} />
         <Stat label="Créneaux du jour" value={todaySlots.length} icon={<Truck className="h-4 w-4" />} />

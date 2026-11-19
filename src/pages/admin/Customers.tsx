@@ -7,6 +7,7 @@ import { money, fmtDateTime } from '../../lib/format'
 import { downloadCsv } from '../../lib/csv'
 import type { Profile, Order } from '../../lib/types'
 import { Button, Card, Input, Modal, Textarea, ErrorBox, Spinner, Empty, Badge, StatusBadge } from '../../components/ui'
+import { useStaffBadges } from '../../lib/staffBadges'
 
 interface Cust { key: string; name: string; email: string | null; phone: string | null; profile?: Profile; orders: Order[] }
 interface DataReq { id: string; email: string; kind: string; message: string | null; status: string; created_at: string; user_id: string | null }
@@ -16,6 +17,10 @@ export default function Customers() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [orders, setOrders] = useState<Order[] | null>(null)
   const [reqs, setReqs] = useState<DataReq[]>([])
+  const { b } = useStaffBadges()
+  // horodatage de la visite précédente, figé à l'arrivée sur la page
+  const [since, setSince] = useState<string | undefined>(undefined)
+  useEffect(() => { if (b && since === undefined) setSince(b.since.customers) }, [b, since])
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<Cust | null>(null)
   const [note, setNote] = useState('')
@@ -55,7 +60,7 @@ export default function Customers() {
             <tbody className="divide-y">
               {customers.map(c => (
                 <tr key={c.key} className="cursor-pointer hover:bg-brand-50/40" onClick={() => { setSel(c); setNote(c.profile?.internal_notes ?? '') }}>
-                  <td className="p-3 font-semibold">{c.name} {!c.profile && <Badge>invité</Badge>}{c.profile?.active === false && <Badge cls="bg-red-100 text-red-700">désactivé</Badge>}</td>
+                  <td className="p-3 font-semibold">{c.name} {since && c.profile && c.profile.created_at > since && <Badge cls="bg-tomato text-white">Nouveau</Badge>} {!c.profile && <Badge>invité</Badge>}{c.profile?.active === false && <Badge cls="bg-red-100 text-red-700">désactivé</Badge>}</td>
                   <td className="text-xs">{c.phone}<br />{c.email}</td>
                   <td>{c.orders.length}</td>
                   <td>{money(c.orders.filter(o => !['cancelled', 'refunded'].includes(o.status)).reduce((s, o) => s + Number(o.total), 0))}</td>

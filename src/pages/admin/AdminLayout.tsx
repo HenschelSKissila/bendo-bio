@@ -3,8 +3,8 @@ import { NavLink, Outlet, Navigate, Link, useNavigate } from 'react-router-dom'
 import { Sun, ClipboardList, Package, Boxes, Users, CalendarClock, Bell, BarChart3, Settings, ShieldCheck, MapPin, History, Store, LogOut, ScanLine } from 'lucide-react'
 import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
-import { useRealtime } from '../../lib/hooks'
 import ConnectionDot from '../../components/ConnectionDot'
+import { StaffBadgesProvider, useStaffBadges, NavBadges, type StaffBadges } from '../../lib/staffBadges'
 import PushPrompt from '../../components/PushPrompt'
 import { pushState } from '../../lib/push'
 import { Spinner } from '../../components/ui'
@@ -16,7 +16,7 @@ const NAV = [
   { to: '/admin/scanner', label: 'Scanner', icon: ScanLine },
   { to: '/admin/produits', label: 'Produits', icon: Package },
   { to: '/admin/creneaux', label: 'Créneaux', icon: CalendarClock },
-  { to: '/admin/alertes', label: 'Alertes', icon: Bell, badge: true },
+  { to: '/admin/alertes', label: 'Alertes', icon: Bell },
   { to: '/admin/clients', label: 'Clients', icon: Users },
   { to: '/admin/rapports', label: 'Rapports', icon: BarChart3 },
   { to: '/admin/zones', label: 'Zones', icon: MapPin, admin: true },
@@ -25,17 +25,37 @@ const NAV = [
   { to: '/admin/parametres', label: 'Paramètres', icon: Settings },
 ]
 
+type Badge = { n: number; tone: 'new' | 'todo' | 'critical'; title: string }
+function badgesFor(to: string, b: StaffBadges | null): Badge[] {
+  if (!b) return []
+  switch (to) {
+    case '/admin': return [{ n: b.to_prepare + b.to_deliver, tone: 'todo', title: 'commande(s) à préparer ou à livrer' }]
+    case '/admin/commandes': return [{ n: b.new_orders, tone: 'new', title: 'nouvelle(s) commande(s) depuis votre dernière visite' },
+      { n: b.to_prepare, tone: 'todo', title: 'à préparer' }]
+    case '/admin/clients': return [{ n: b.new_customers, tone: 'new', title: 'nouveau(x) client(s) inscrit(s)' },
+      { n: b.data_requests, tone: 'todo', title: 'demande(s) RGPD à traiter' }]
+    case '/admin/produits': return [{ n: b.new_products, tone: 'new', title: 'nouvel(s) article(s) ajouté(s)' }]
+    case '/admin/stock': return [{ n: b.new_lots, tone: 'new', title: 'nouvelle(s) réception(s) de stock' }]
+    case '/admin/alertes': return [{ n: b.critical_alerts, tone: 'critical', title: 'alerte(s) critique(s)' },
+      { n: b.open_alerts - b.critical_alerts, tone: 'todo', title: 'autre(s) alerte(s) ouverte(s)' }]
+    case '/admin/utilisateurs': return [{ n: b.role_requests, tone: 'todo', title: 'demande(s) d\'accès livreur / gestionnaire' }]
+    default: return []
+  }
+}
+
 export default function AdminLayout() {
+  const { isStaff } = useAuth()
+  return <StaffBadgesProvider enabled={isStaff}><AdminShell /></StaffBadgesProvider>
+}
+
+function AdminShell() {
   const { loading, session, isStaff, isAdmin, isCourier, profile, signOut } = useAuth()
   const nav = useNavigate()
-  const [openAlerts, setOpenAlerts] = useState(0)
+  const { b: badges, reload: reloadBadges } = useStaffBadges()
   const [toast, setToast] = useState<string | null>(null)
   const [askPush, setAskPush] = useState(() => {
     try { return ['default', 'ios_needs_install'].includes(pushState()) && localStorage.getItem('bendo-push-dismissed') !== '1' } catch { return false }
   })
-  const loadCount = () => { supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'open').then(({ count }) => setOpenAlerts(count ?? 0)) }
-  useEffect(() => { if (isStaff) loadCount() }, [isStaff])
-  useRealtime(['alerts'], loadCount, isStaff)
 
   // notification instantanée d'une nouvelle commande
   useEffect(() => {
@@ -45,6 +65,12 @@ export default function AdminLayout() {
       setToast(`Nouvelle commande ${n ?? ''}`)
       try { navigator.vibrate?.(200) } catch { /* ignore */ }
       setTimeout(() => setToast(null), 8000)
+      reloadBadges()
+    }).on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'profiles' }, p => {
+      const r = p.new as { full_name?: string; requested_role?: string | null }
+      setToast(r.requested_role ? `Demande d'accès ${r.requested_role === 'courier' ? 'livreur' : 'gestionnaire'} : ${r.full_name ?? ''}` : `Nouveau client inscrit : ${r.full_name ?? ''}`)
+      setTimeout(() => setToast(null), 8000)
+      reloadBadges()
     }).subscribe()
     return () => { supabase.removeChannel(ch) }
   }, [isStaff])
@@ -66,9 +92,13 @@ export default function AdminLayout() {
       className={({ isActive }) => mobile
         ? `flex flex-none flex-col items-center gap-0.5 rounded-xl px-3 py-1.5 text-[11px] font-medium ${isActive ? 'bg-brand-700 text-white' : 'text-brand-900'}`
         : `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium ${isActive ? 'bg-brand-700 text-white' : 'text-brand-900 hover:bg-brand-50'}`}>
-      <span className="relative"><n.icon className="h-5 w-5" />
-        {n.badge && openAlerts > 0 && <span className="absolute -right-2 -top-2 rounded-full bg-tomato px-1 text-[10px] font-bold text-white">{openAlerts}</span>}
-      </span>{n.label}
+      {mobile ? (
+        <span className="relative"><n.icon className="h-5 w-5" />
+          {badgesFor(n.to, badges).some(x => x.n > 0) && <span className="absolute -right-2 -top-2 rounded-full bg-tomato px-1 text-[10px] font-bold text-white">{badgesFor(n.to, badges).reduce((a, x) => a + x.n, 0)}</span>}
+        </span>
+      ) : <n.icon className="h-5 w-5 flex-none" />}
+      {n.label}
+      {!mobile && <NavBadges items={badgesFor(n.to, badges)} />}
     </NavLink>
   )
   return (
@@ -100,7 +130,7 @@ export default function AdminLayout() {
         )}
         <Outlet />
       </main>
-      {toast && <button onClick={() => { setToast(null); nav('/admin/commandes') }} className="fixed bottom-4 right-4 z-50 rounded-2xl bg-brand-800 px-5 py-3 font-semibold text-white shadow-xl print:hidden">🛒 {toast}</button>}
+      {toast && <button onClick={() => { setToast(null); nav(toast.startsWith('Nouveau client') ? '/admin/clients' : toast.startsWith('Demande') ? '/admin/utilisateurs' : '/admin/commandes') }} className="fixed bottom-4 right-4 z-50 rounded-2xl bg-brand-800 px-5 py-3 font-semibold text-white shadow-xl print:hidden">{toast.startsWith('Nouvelle commande') ? '🛒' : '👤'} {toast}</button>}
     </div>
   )
 }

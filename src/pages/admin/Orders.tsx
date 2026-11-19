@@ -4,7 +4,8 @@ import { supabase } from '../../lib/supabase'
 import { useRealtime } from '../../lib/hooks'
 import { money, fmtDateTime, fmtTime, STATUS } from '../../lib/format'
 import type { Order, Slot, OrderStatus } from '../../lib/types'
-import { Card, Input, Select, StatusBadge, Spinner, Empty } from '../../components/ui'
+import { Card, Input, Select, StatusBadge, Spinner, Empty, Badge } from '../../components/ui'
+import { useStaffBadges } from '../../lib/staffBadges'
 
 type Row = Order & { slots: Pick<Slot, 'starts_at' | 'ends_at'> | null }
 const GROUPS: Record<string, OrderStatus[]> = {
@@ -14,6 +15,10 @@ const GROUPS: Record<string, OrderStatus[]> = {
 
 export default function Orders() {
   const [rows, setRows] = useState<Row[] | null>(null)
+  const { b } = useStaffBadges()
+  // horodatage de la visite précédente, figé à l'arrivée sur la page
+  const [since, setSince] = useState<string | undefined>(undefined)
+  useEffect(() => { if (b && since === undefined) setSince(b.since.orders) }, [b, since])
   const [group, setGroup] = useState('active')
   const [status, setStatus] = useState('')
   const [ff, setFf] = useState('')
@@ -56,7 +61,8 @@ export default function Orders() {
             <tbody className="divide-y">
               {rows.map(o => (
                 <tr key={o.id} className="hover:bg-brand-50/40">
-                  <td className="p-3"><Link to={`/admin/commandes/${o.id}`} className="font-mono font-semibold text-brand-700 hover:underline">{o.order_number}</Link><div className="text-xs text-gray-500">{fmtDateTime(o.created_at)}</div></td>
+                  <td className="p-3"><Link to={`/admin/commandes/${o.id}`} className="font-mono font-semibold text-brand-700 hover:underline">{o.order_number}</Link>
+                    {since && o.created_at > since && <Badge cls="ml-1 bg-tomato text-white">Nouveau</Badge>}<div className="text-xs text-gray-500">{fmtDateTime(o.created_at)}</div></td>
                   <td>{o.guest_name ?? '—'}<div className="text-xs text-gray-500">{o.guest_phone}</div></td>
                   <td>{o.fulfillment === 'delivery' ? `🚚 ${o.address_postal_code ?? ''}` : '🏪 Retrait'}</td>
                   <td>{o.slots ? <>{new Date(o.slots.starts_at).toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: '2-digit' })}<div className="text-xs text-gray-500">{fmtTime(o.slots.starts_at)}–{fmtTime(o.slots.ends_at)}</div></> : '—'}</td>

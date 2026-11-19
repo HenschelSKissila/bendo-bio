@@ -7,6 +7,7 @@ import { money, num, UNIT_LABEL } from '../../lib/format'
 import type { Product, Category, Stock, Unit } from '../../lib/types'
 import { ProductImage } from '../../components/ProductCard'
 import { Button, Card, Field, Input, Select, Textarea, Modal, ErrorBox, Spinner, Badge, Empty } from '../../components/ui'
+import { useStaffBadges } from '../../lib/staffBadges'
 
 const EMPTY: Partial<Product> = { sku: '', name: '', unit: 'piece', price: 0, tax_rate: 5.5, min_qty: 1, qty_step: 1, status: 'active',
   low_threshold: 10, critical_threshold: 3, organic: true, featured: false, variable_weight: false }
@@ -19,6 +20,10 @@ export function stockTone(p: Product, s?: Stock) {
 export default function Products() {
   const { isAdmin } = useAuth()
   const [products, setProducts] = useState<Product[] | null>(null)
+  const { b } = useStaffBadges()
+  // horodatage de la visite précédente, figé à l'arrivée sur la page
+  const [since, setSince] = useState<string | undefined>(undefined)
+  useEffect(() => { if (b && since === undefined) setSince(b.since.products) }, [b, since])
   const [cats, setCats] = useState<Category[]>([])
   const [stock, setStock] = useState<Record<string, Stock>>({})
   const [q, setQ] = useState('')
@@ -85,7 +90,7 @@ export default function Products() {
             <tbody className="divide-y">
               {list.map(p => { const s = stock[p.id]; return (
                 <tr key={p.id} className="cursor-pointer hover:bg-brand-50/40" onClick={() => { setErr(null); setEdit(p) }}>
-                  <td className="flex items-center gap-2 p-2"><ProductImage p={p} className="h-10 w-10 rounded-lg text-xl" /><div><div className="font-semibold">{p.name}</div><div className="text-xs text-gray-500">{p.sku}{p.packaging ? ` · ${p.packaging}` : ''}</div></div></td>
+                  <td className="flex items-center gap-2 p-2"><ProductImage p={p} className="h-10 w-10 rounded-lg text-xl" /><div><div className="font-semibold">{p.name} {since && p.created_at && p.created_at > since && <Badge cls="bg-tomato text-white">Nouveau</Badge>}</div><div className="text-xs text-gray-500">{p.sku}{p.packaging ? ` · ${p.packaging}` : ''}</div></div></td>
                   <td>{money(p.price)}<span className="text-xs text-gray-500"> /{UNIT_LABEL[p.unit]}</span></td>
                   <td className="tabular-nums">{num(s?.physical)}</td>
                   <td className="tabular-nums">{num(s?.reserved)}</td>
