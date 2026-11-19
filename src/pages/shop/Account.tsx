@@ -4,23 +4,35 @@ import { supabase, errMsg } from '../../lib/supabase'
 import { useAuth } from '../../lib/auth'
 import { money, fmtDateTime } from '../../lib/format'
 import type { Order } from '../../lib/types'
+import OrderTimeline, { type HistEntry } from '../../components/OrderTimeline'
+import PushPrompt from '../../components/PushPrompt'
+import { useNotifications } from '../../lib/notifications'
 import { Button, Card, Field, Input, Select, Textarea, ErrorBox, SuccessBox, StatusBadge, Spinner, Empty } from '../../components/ui'
 
 export default function Account() {
-  const { session, profile, loading, signOut, refreshProfile, isStaff } = useAuth()
+  const { session, profile, loading, signOut, refreshProfile, isStaff, isCourier } = useAuth()
   const [sp] = useSearchParams()
   const [orders, setOrders] = useState<Order[] | null>(null)
+  const [open, setOpen] = useState<string | null>(sp.get('commande'))
+  const [hist, setHist] = useState<Record<string, HistEntry[]>>({})
+  const { list: notifs } = useNotifications()
   const [f, setF] = useState({ full_name: '', phone: '', marketing_consent: false })
   const [pwd, setPwd] = useState('')
   const [req, setReq] = useState({ kind: 'access', message: '' })
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
 
+  // recharge à chaque nouvelle notification (étape franchie)
   useEffect(() => {
     if (!session) return
     supabase.from('orders').select('*').eq('customer_id', session.user.id).order('created_at', { ascending: false }).limit(50)
       .then(({ data }) => setOrders((data as Order[]) ?? []))
-  }, [session])
+  }, [session, notifs.length])
+  useEffect(() => {
+    if (!open) return
+    supabase.from('order_status_history').select('from_status, to_status, note, created_at').eq('order_id', open).order('created_at')
+      .then(({ data }) => setHist(h => ({ ...h, [open]: (data as HistEntry[]) ?? [] })))
+  }, [open, notifs.length])
   useEffect(() => { if (profile) setF({ full_name: profile.full_name ?? '', phone: profile.phone ?? '', marketing_consent: profile.marketing_consent }) }, [profile])
 
   if (loading) return <Spinner />
@@ -36,10 +48,13 @@ export default function Account() {
         <h1 className="text-2xl font-bold text-brand-900">Bonjour {profile?.full_name ?? ''}</h1>
         <div className="flex gap-2">
           {isStaff && <Link to="/admin" className="rounded-xl bg-brand-800 px-4 py-2 text-sm font-semibold text-white">Espace gestion</Link>}
+          {isCourier && <Link to="/livreur" className="rounded-xl bg-carrot px-4 py-2 text-sm font-semibold text-white">🛵 Espace livreur</Link>}
           <Button variant="secondary" onClick={signOut}>Se déconnecter</Button>
         </div>
       </div>
       <SuccessBox>{msg}</SuccessBox><ErrorBox>{err}</ErrorBox>
+      {profile?.requested_role && <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">⏳ Votre demande d'accès <strong>{profile.requested_role === 'courier' ? 'livreur' : 'gestionnaire'}</strong> est en attente de validation par l'administrateur. Vous serez notifié(e).</div>}
+      <PushPrompt compact />
       {sp.get('reset') && (
         <Card className="space-y-2">
           <h2 className="font-bold">Nouveau mot de passe</h2>
@@ -52,11 +67,21 @@ export default function Account() {
         {orders === null ? <Spinner /> : orders.length === 0 ? <Empty>Aucune commande pour le moment.</Empty> : (
           <ul className="divide-y">
             {orders.map(o => (
-              <li key={o.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
-                <span className="font-mono font-semibold">{o.order_number}</span>
-                <span className="text-gray-500">{fmtDateTime(o.created_at)}</span>
-                <StatusBadge s={o.status} />
-                <span className="font-semibold">{money(o.total)}</span>
+              <li key={o.id} className="py-2">
+                <button onClick={() => setOpen(open === o.id ? null : o.id)} aria-expanded={open === o.id}
+                  className="flex w-full flex-wrap items-center justify-between gap-2 text-left text-sm">
+                  <span className="font-mono font-semibold">{o.order_number}</span>
+                  <span className="text-gray-500">{fmtDateTime(o.created_at)}</span>
+                  <StatusBadge s={o.status} />
+                  <span className="text-xs">{o.payment_status === 'paid' ? '✅ Payée' : '⏳ À payer'}</span>
+                  <span className="font-semibold">{money(o.total)}</span>
+                  <span className="text-brand-700">{open === o.id ? '▲' : '▼ Suivi'}</span>
+                </button>
+                {open === o.id && (
+                  <div className="mt-3 rounded-xl bg-gray-50 p-3">
+                    {hist[o.id] ? <OrderTimeline history={hist[o.id]} deliveredAt={o.delivered_at} receivedBy={o.received_by} /> : <Spinner />}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

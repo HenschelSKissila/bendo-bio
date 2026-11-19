@@ -5,7 +5,7 @@ import type { Profile } from './types'
 
 interface AuthCtx {
   session: Session | null; profile: Profile | null; loading: boolean
-  isStaff: boolean; isAdmin: boolean; refreshProfile: () => Promise<void>; signOut: () => Promise<void>
+  isStaff: boolean; isAdmin: boolean; isCourier: boolean; refreshProfile: () => Promise<void>; signOut: () => Promise<void>
 }
 const Ctx = createContext<AuthCtx>(null as unknown as AuthCtx)
 
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session, profile, loading,
     isStaff: active && (profile?.role === 'employee' || profile?.role === 'admin'),
     isAdmin: active && profile?.role === 'admin',
+    isCourier: active && profile?.role === 'courier',
     refreshProfile: () => loadProfile(session),
     signOut: async () => { await supabase.auth.signOut(); setProfile(null) },
   }

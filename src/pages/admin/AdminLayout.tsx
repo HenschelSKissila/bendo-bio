@@ -5,6 +5,8 @@ import { useAuth } from '../../lib/auth'
 import { supabase } from '../../lib/supabase'
 import { useRealtime } from '../../lib/hooks'
 import ConnectionDot from '../../components/ConnectionDot'
+import PushPrompt from '../../components/PushPrompt'
+import { pushState } from '../../lib/push'
 import { Spinner } from '../../components/ui'
 
 const NAV = [
@@ -24,10 +26,13 @@ const NAV = [
 ]
 
 export default function AdminLayout() {
-  const { loading, session, isStaff, isAdmin, profile, signOut } = useAuth()
+  const { loading, session, isStaff, isAdmin, isCourier, profile, signOut } = useAuth()
   const nav = useNavigate()
   const [openAlerts, setOpenAlerts] = useState(0)
   const [toast, setToast] = useState<string | null>(null)
+  const [askPush, setAskPush] = useState(() => {
+    try { return ['default', 'ios_needs_install'].includes(pushState()) && localStorage.getItem('bendo-push-dismissed') !== '1' } catch { return false }
+  })
   const loadCount = () => { supabase.from('alerts').select('id', { count: 'exact', head: true }).eq('status', 'open').then(({ count }) => setOpenAlerts(count ?? 0)) }
   useEffect(() => { if (isStaff) loadCount() }, [isStaff])
   useRealtime(['alerts'], loadCount, isStaff)
@@ -46,10 +51,11 @@ export default function AdminLayout() {
 
   if (loading) return <Spinner />
   if (!session) return <Navigate to="/connexion?staff=1&next=/admin" />
+  if (!isStaff && isCourier) return <Navigate to="/livreur" />
   if (!isStaff) return (
     <div className="mx-auto mt-10 max-w-md rounded-2xl bg-white p-6 text-center shadow">
       <h1 className="text-lg font-bold">Accès réservé au personnel</h1>
-      <p className="mt-2 text-sm text-gray-600">Votre compte ({session.user.email}) n'a pas les droits employé. Demandez à l'administrateur de vous attribuer le rôle « Employé ».</p>
+      <p className="mt-2 text-sm text-gray-600">Votre compte ({session.user.email}) n'a pas les droits gestionnaire.{profile?.requested_role === 'employee' ? ' Votre demande est en attente de validation par l\'administrateur.' : ' Demandez à l\'administrateur de vous attribuer le rôle « Gestionnaire ».'}</p>
       {profile?.active === false && <p className="mt-2 text-sm font-semibold text-tomato">Ce compte est désactivé.</p>}
       <div className="mt-4 flex justify-center gap-2"><Link to="/" className="text-brand-700 underline">Boutique</Link> · <Link to="/installation" className="text-brand-700 underline">Installation</Link></div>
     </div>
@@ -85,7 +91,15 @@ export default function AdminLayout() {
         </div>
         <nav className="flex gap-1 overflow-x-auto px-2 pb-2">{items.map(n => link(n, true))}</nav>
       </div>
-      <main className="min-w-0 flex-1 p-3 sm:p-5"><Outlet /></main>
+      <main className="min-w-0 flex-1 p-3 sm:p-5">
+        {askPush && (
+          <div className="mb-4 print:hidden">
+            <PushPrompt staff compact />
+            <button className="mt-1 text-xs text-gray-500 underline" onClick={() => { setAskPush(false); try { localStorage.setItem('bendo-push-dismissed', '1') } catch { /* ignore */ } }}>Plus tard</button>
+          </div>
+        )}
+        <Outlet />
+      </main>
       {toast && <button onClick={() => { setToast(null); nav('/admin/commandes') }} className="fixed bottom-4 right-4 z-50 rounded-2xl bg-brand-800 px-5 py-3 font-semibold text-white shadow-xl print:hidden">🛒 {toast}</button>}
     </div>
   )

@@ -2,6 +2,9 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './lib/auth'
 import { CartProvider } from './lib/cart'
+import { NotificationsProvider } from './lib/notifications'
+import Notifications from './pages/shop/Notifications'
+import LotInfo from './pages/shop/LotInfo'
 import { Spinner } from './components/ui'
 import ShopLayout from './pages/shop/ShopLayout'
 import Home from './pages/shop/Home'
@@ -15,6 +18,7 @@ import Login from './pages/shop/Login'
 import Account from './pages/shop/Account'
 import Legal from './pages/shop/Legal'
 import Setup from './pages/Setup'
+const Courier = lazy(() => import('./pages/Courier'))
 
 // Espace gestion chargé à la demande (boutique plus légère pour les clients)
 const AdminLayout = lazy(() => import('./pages/admin/AdminLayout'))
@@ -36,6 +40,7 @@ const Settings = lazy(() => import('./pages/admin/Settings'))
 export default function App() {
   return (
     <AuthProvider>
+      <NotificationsProvider>
       <CartProvider>
         <BrowserRouter>
           <Suspense fallback={<Spinner />}>
@@ -50,9 +55,12 @@ export default function App() {
                 <Route path="suivi" element={<Track />} />
                 <Route path="connexion" element={<Login />} />
                 <Route path="compte" element={<Account />} />
+                <Route path="notifications" element={<Notifications />} />
+                <Route path="l/:id" element={<LotInfo />} />
                 <Route path="legal/:doc" element={<Legal />} />
                 <Route path="installation" element={<Setup />} />
               </Route>
+              <Route path="livreur" element={<Courier />} />
               <Route path="admin" element={<AdminLayout />}>
                 <Route index element={<Today />} />
                 <Route path="commandes" element={<Orders />} />
@@ -74,6 +82,7 @@ export default function App() {
           </Suspense>
         </BrowserRouter>
       </CartProvider>
+      </NotificationsProvider>
     </AuthProvider>
   )
 }

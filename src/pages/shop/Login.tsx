@@ -8,7 +8,7 @@ export default function Login() {
   const nav = useNavigate()
   const staff = sp.get('staff') === '1'
   const [mode, setMode] = useState<'login' | 'signup' | 'reset'>(sp.get('mode') === 'signup' ? 'signup' : 'login')
-  const [f, setF] = useState({ email: '', password: '', name: '', phone: '', marketing: false })
+  const [f, setF] = useState({ email: '', password: '', name: '', phone: '', marketing: false, kind: sp.get('type') ?? 'client' })
   const [err, setErr] = useState<string | null>(null)
   const [ok, setOk] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -24,7 +24,7 @@ export default function Login() {
         if (f.password.length < 8) throw new Error('Mot de passe : 8 caractères minimum.')
         const { data, error } = await supabase.auth.signUp({
           email: f.email.trim(), password: f.password,
-          options: { data: { full_name: f.name, phone: f.phone, marketing_consent: f.marketing }, emailRedirectTo: window.location.origin + '/compte' },
+          options: { data: { full_name: f.name, phone: f.phone, marketing_consent: f.marketing, requested_role: f.kind === 'client' ? null : f.kind }, emailRedirectTo: window.location.origin + '/compte' },
         })
         if (error) throw new Error(friendlyError(error.message))
         if (data.session) nav(sp.get('next') || '/compte')
@@ -48,6 +48,16 @@ export default function Login() {
         </div>
         <form onSubmit={submit} className="space-y-3">
           {mode === 'signup' && <>
+            <fieldset>
+              <legend className="mb-1 text-sm font-medium text-gray-700">Type de compte</legend>
+              <div className="grid grid-cols-3 gap-2">
+                {[['client', '🛒', 'Client'], ['courier', '🛵', 'Livreur'], ['employee', '🧑‍🌾', 'Gestionnaire']].map(([k, i, l]) => (
+                  <button type="button" key={k} onClick={() => setF({ ...f, kind: k })} aria-pressed={f.kind === k}
+                    className={`rounded-xl border-2 p-2 text-sm font-semibold ${f.kind === k ? 'border-brand-600 bg-brand-50' : 'border-gray-200'}`}>{i}<br />{l}</button>
+                ))}
+              </div>
+              {f.kind !== 'client' && <p className="mt-1 text-xs text-orange-700">L'accès {f.kind === 'courier' ? 'livreur' : 'gestionnaire'} doit être validé par l'administrateur. En attendant, votre compte fonctionne comme un compte client.</p>}
+            </fieldset>
             <Field label="Nom complet" required><Input required value={f.name} onChange={e => setF({ ...f, name: e.target.value })} autoComplete="name" /></Field>
             <Field label="Téléphone" required><Input required type="tel" value={f.phone} onChange={e => setF({ ...f, phone: e.target.value })} autoComplete="tel" /></Field>
           </>}

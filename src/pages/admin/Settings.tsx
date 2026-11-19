@@ -6,6 +6,7 @@ import { useConnection, useSettings } from '../../lib/hooks'
 import { fmtDateTime } from '../../lib/format'
 import type { Settings as S } from '../../lib/types'
 import { Button, Card, Field, Input, Textarea, ErrorBox, SuccessBox, Badge } from '../../components/ui'
+import PushPrompt from '../../components/PushPrompt'
 
 const TABLES = ['settings', 'profiles', 'categories', 'products', 'lots', 'stock_movements', 'delivery_zones', 'slots', 'orders', 'order_items', 'alerts', 'notifications', 'audit_log']
 
@@ -22,6 +23,7 @@ export default function Settings() {
   const conn = useConnection()
   const [s, setS] = useState<S | null>(null)
   const [health, setHealth] = useState<Health | null>(null)
+  const [push, setPush] = useState<{ configured: boolean; pg_net: boolean; devices: number; staff_devices: number } | null>(null)
   const [tables, setTables] = useState<Record<string, { ok: boolean; ms: number; err?: string }>>({})
   const [notifs, setNotifs] = useState<Notif[]>([])
   const [err, setErr] = useState<string | null>(null)
@@ -32,6 +34,7 @@ export default function Settings() {
     setBusy(true); setErr(null)
     await conn.check()
     try { setHealth(await rpc<Health>('system_health')) } catch (e) { setErr(errMsg(e)); setHealth(null) }
+    rpc<typeof push>('push_health').then(setPush).catch(() => setPush(null))
     const res: typeof tables = {}
     await Promise.all(TABLES.map(async t => {
       const t0 = performance.now()
@@ -89,6 +92,9 @@ export default function Settings() {
             <Row label="Tables temps réel" ok={rtExpected.every(t => health.realtime_tables.includes(t))} value={health.realtime_tables.join(', ') || 'aucune'} />
             <Row label="Tâches automatiques" ok={health.pg_cron_installed ? true : null} value={health.pg_cron_installed ? 'pg_cron actif (toutes les 5 min / 1 h)' : 'pg_cron absent : tâches lancées à l\'ouverture du tableau de bord'} />
             <Row label="Dernière exécution" ok={!!health.last_job} value={health.last_job ? `${fmtDateTime(health.last_job.ran_at)} — ${Object.entries(health.last_job.details).map(([k, v]) => `${k}: ${v}`).join(', ')}` : 'jamais'} />
+            <Row label="Notifications push" ok={push ? (push.configured && push.pg_net ? true : null) : false}
+              value={!push ? 'Script 007 non exécuté' : !push.pg_net ? 'Extension pg_net absente' : !push.configured ? 'Envoi non configuré (voir README, étape « notifications push »)'
+                : `Actif — ${push.devices} appareil(s) abonné(s), dont ${push.staff_devices} de l'équipe`} />
             <Row label="Notifications" ok={health.notifications.failed === 0} value={`${health.notifications.pending} en attente · ${health.notifications.sent} envoyées · ${health.notifications.failed} en échec`} />
             <Row label="Volumes" ok={true} value={Object.entries(health.counts).map(([k, v]) => `${k} ${v}`).join(' · ')} />
           </>}
@@ -97,6 +103,7 @@ export default function Settings() {
           {TABLES.map(t => tables[t] && <Badge key={t} cls={tables[t].ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>{tables[t].ok ? '✓' : '✗'} {t} {tables[t].ms} ms</Badge>)}
         </div>
         <ErrorBox>{err}</ErrorBox>
+        <PushPrompt staff compact />
         {isAdmin && <Button variant="secondary" onClick={async () => { try { const r = await rpc('run_maintenance', { p_force: true }); setOk(`Maintenance exécutée : ${JSON.stringify(r)}`); diagnose() } catch (e) { setErr(errMsg(e)) } }}>Lancer les tâches automatiques maintenant</Button>}
       </Card>
 

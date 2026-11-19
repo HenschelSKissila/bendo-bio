@@ -25,6 +25,7 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: '/index.html',
+        importScripts: ['push-handler.js'],   // notifications push (public/push-handler.js)
         // les données Supabase ne sont jamais mises en cache (toujours à jour)
         runtimeCaching: [
           { urlPattern: ({ url }) => url.hostname.endsWith('supabase.co') && url.pathname.includes('/storage/'),

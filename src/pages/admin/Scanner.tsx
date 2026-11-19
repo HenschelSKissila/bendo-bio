@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 import { Camera, CameraOff } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -24,6 +25,8 @@ export default function Scanner() {
   const [products, setProducts] = useState<Product[]>([])
   const qr = useRef<Html5Qrcode | null>(null)
   const last = useRef('')
+  const nav = useNavigate()
+  const [sp] = useSearchParams()
 
   useEffect(() => { supabase.from('products').select('*').order('name').then(({ data }) => setProducts((data as Product[]) ?? [])) }, [])
 
@@ -31,7 +34,15 @@ export default function Scanner() {
     const v = raw.trim(); if (!v) return
     setErr(null); setLot(null); setProduct(null); setLots([]); setStock(null)
     let p: Product | null = null
-    const lotMatch = v.match(/^BENDO:LOT:([0-9a-f-]{36})$/i)
+    // étiquette de colis (URL de suivi) → ouvre la commande
+    const orderMatch = v.match(/[?&]n=(BB-[0-9A-Z-]+)/i) ?? v.match(/^(BB-\d{6}-[0-9A-F]{6})$/i)
+    if (orderMatch) {
+      const { data } = await supabase.from('orders').select('id').eq('order_number', decodeURIComponent(orderMatch[1]).toUpperCase()).maybeSingle()
+      if (data) { nav(`/admin/commandes/${data.id}`); return }
+      setErr('Commande introuvable.'); return
+    }
+    // étiquette de lot : URL https://…/l/<id> (nouveau) ou BENDO:LOT:<id> (ancien)
+    const lotMatch = v.match(/\/l\/([0-9a-f-]{36})/i) ?? v.match(/^BENDO:LOT:([0-9a-f-]{36})$/i)
     if (lotMatch) {
       const { data } = await supabase.from('lots').select('*').eq('id', lotMatch[1]).maybeSingle()
       if (!data) { setErr('Lot introuvable.'); return }
@@ -57,6 +68,9 @@ export default function Scanner() {
     setStock(((st.data as Stock[]) ?? []).find(s => s.product_id === p!.id) ?? null)
     try { navigator.vibrate?.(80) } catch { /* ignore */ }
   }, [])
+
+  // ouverture directe depuis la page publique d'un lot (?code=…)
+  useEffect(() => { const c = sp.get('code'); if (c) { setCode(c); lookup(c) } }, [sp, lookup])
 
   async function start() {
     setErr(null)
@@ -133,7 +147,10 @@ export default function Scanner() {
       <Card className="text-sm text-gray-600">
         <h2 className="mb-1 font-semibold text-gray-800">Comment ça marche ?</h2>
         <ul className="list-disc space-y-1 pl-5">
-          <li><strong>Produits frais en vrac</strong> (tomates, oignons…) : chaque lot reçoit une <strong>étiquette QR</strong> imprimée à la réception, collée sur le bac/la cagette. Scanner l'étiquette ouvre le lot (sortie, perte, inventaire, blocage).</li>
+          <li><strong>Produits frais en vrac</strong> (tomates, oignons…) : on n'étiquette pas le produit, mais le <strong>bac, la cagette ou le rayon</strong> du lot (étiquette QR imprimée à la réception). Scanner l'étiquette ouvre le lot (sortie, perte, inventaire, blocage).</li>
+          <li><strong>Sachets et barquettes préparés</strong> : étiquette QR ou <strong>étiquette simple</strong> (logo + référence + date limite) quand la place manque.</li>
+          <li><strong>Colis client</strong> : l'étiquette colis (bon de commande) porte un QR ; le client le scanne pour suivre sa commande, l'agent pour l'ouvrir dans la gestion.</li>
+          <li>Le QR contient une <strong>adresse web</strong> : n'importe quel téléphone l'ouvre (fiche de traçabilité : produit, lot, date limite, origine).</li>
           <li><strong>Produits préemballés</strong> (œufs, épicerie) : saisissez leur <strong>code-barres EAN</strong> dans la fiche produit ; le scan ouvre le produit et ses lots.</li>
           <li>Une <strong>douchette</strong> USB/Bluetooth fonctionne aussi : cliquez dans le champ et scannez.</li>
         </ul>

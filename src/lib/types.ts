@@ -1,4 +1,4 @@
-export type Role = 'client' | 'employee' | 'admin'
+export type Role = 'client' | 'employee' | 'admin' | 'courier'
 export type Unit = 'piece' | 'kg' | 'g' | 'l' | 'botte' | 'barquette' | 'sachet' | 'pack' | 'colis'
 export type OrderStatus = 'pending_payment' | 'confirmed' | 'preparing' | 'ready' | 'out_for_delivery'
   | 'delivered' | 'cancelled' | 'refunded' | 'partially_refunded' | 'delivery_failed'
@@ -8,7 +8,7 @@ export type MovementType = 'reception' | 'sale' | 'return_restock' | 'adjustment
 
 export interface Profile {
   id: string; email: string | null; full_name: string | null; phone: string | null; role: Role; active: boolean
-  marketing_consent: boolean; sms_consent: boolean; internal_notes: string | null; last_login_at: string | null; created_at: string
+  marketing_consent: boolean; sms_consent: boolean; requested_role?: 'courier' | 'employee' | null; internal_notes: string | null; last_login_at: string | null; created_at: string
 }
 export interface Category { id: string; name: string; slug: string; icon: string; sort_order: number; expiry_alert_days: number | null; active: boolean }
 export interface Product {
@@ -34,7 +34,7 @@ export interface Order {
   address_instructions: string | null; zone_id: string | null; slot_id: string | null; payment_method: 'cash_on_delivery' | 'mobile_money_on_delivery' | 'online'
   payment_status: string; subtotal: number; tax_total: number; delivery_fee: number; discount: number; total: number; currency: string
   customer_note: string | null; internal_note: string | null; reserved_until: string | null; stock_committed: boolean; assigned_to: string | null
-  departed_at: string | null; delivered_at: string | null; failure_reason: string | null; cancel_reason: string | null; created_at: string; updated_at: string
+  departed_at: string | null; delivered_at: string | null; received_by: string | null; courier_id?: string | null; failure_reason: string | null; cancel_reason: string | null; created_at: string; updated_at: string
 }
 export interface OrderItem {
   id: string; order_id: string; product_id: string | null; product_name: string; product_sku: string; unit: Unit; unit_price: number

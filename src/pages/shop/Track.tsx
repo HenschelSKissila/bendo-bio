@@ -4,10 +4,13 @@ import { rpc, errMsg } from '../../lib/supabase'
 import { money, fmtSlot, fmtDateTime, UNIT_LABEL } from '../../lib/format'
 import type { OrderStatus, Unit } from '../../lib/types'
 import { Button, Card, Field, Input, ErrorBox, StatusBadge } from '../../components/ui'
+import OrderTimeline, { type HistEntry } from '../../components/OrderTimeline'
+import PushPrompt from '../../components/PushPrompt'
 
 interface Tracked {
   order_number: string; status: OrderStatus; fulfillment: string; total: number; created_at: string
   slot_start: string; slot_end: string; payment_status: string
+  delivered_at: string | null; received_by: string | null; history: HistEntry[] | null
   items: { name: string; quantity: number; unit: Unit; line_total: number; unavailable: boolean }[]
 }
 const STEPS: OrderStatus[] = ['confirmed', 'preparing', 'ready', 'out_for_delivery', 'delivered']
@@ -56,6 +59,9 @@ export default function Track() {
             ))}
           </ul>
           <div className="flex justify-between border-t pt-2 font-bold"><span>Total</span><span>{money(o.total)}</span></div>
+          <div className="text-sm">{o.payment_status === 'paid' ? '✅ Paiement reçu' : '⏳ Paiement à la remise'}</div>
+          <OrderTimeline history={o.history ?? []} deliveredAt={o.delivered_at} receivedBy={o.received_by} />
+          {!['delivered', 'cancelled', 'refunded'].includes(o.status) && <PushPrompt guest={{ orderNumber: o.order_number, contact: c }} />}
         </Card>
       )}
     </div>

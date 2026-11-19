@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Printer, Phone } from 'lucide-react'
+import { ArrowLeft, Printer, Phone, MapPin, MessageSquare, Wallet } from 'lucide-react'
 import { supabase, rpc, errMsg } from '../../lib/supabase'
 import { useRealtime } from '../../lib/hooks'
 import { money, fmtDateTime, fmtSlot, fmtTime, STATUS, PAYMENT_LABEL, UNIT_LABEL, num } from '../../lib/format'
 import type { Order, OrderItem, Slot, OrderStatus } from '../../lib/types'
+import { printParcelLabel } from '../../components/QrLabel'
 import { Button, Card, Field, Input, Textarea, Select, Modal, ErrorBox, StatusBadge, Spinner, Badge } from '../../components/ui'
 
 interface Hist { id: number; from_status: OrderStatus | null; to_status: OrderStatus; note: string | null; created_at: string }
@@ -38,6 +39,10 @@ export default function OrderDetail() {
   const [slots, setSlots] = useState<Slot[]>([])
   const [internal, setInternal] = useState('')
   const [agent, setAgent] = useState<string | null>(null)
+  const [recv, setRecv] = useState({ rel: 'self', name: '' })
+  const [pay, setPay] = useState<null | { method: string; ref: string; amount: string }>(null)
+  const [msgOpen, setMsgOpen] = useState(false)
+  const [couriers, setCouriers] = useState<{ id: string; full_name: string | null }[]>([])
 
   const load = useCallback(async () => {
     const { data } = await supabase.from('orders').select('*').eq('id', id).maybeSingle()
@@ -58,6 +63,7 @@ export default function OrderDetail() {
     }
   }, [id])
   useEffect(() => { load() }, [load])
+  useEffect(() => { supabase.from('profiles').select('id, full_name').eq('role', 'courier').eq('active', true).order('full_name').then(({ data }) => setCouriers(data ?? [])) }, [])
   useRealtime(['orders'], load)
 
   const run = async (fn: () => Promise<unknown>) => {
@@ -74,8 +80,13 @@ export default function OrderDetail() {
     const ok = await run(() => rpc('set_order_status', {
       p_order: o!.id, p_status: modal.to, p_note: note || null,
       p_restock: modal.to === 'cancelled' && o!.status !== 'confirmed' && o!.stock_committed ? restock === 'yes' : null,
+      p_received_by: modal.to === 'delivered' ? receivedBy() : null,
     }))
-    if (ok) { setModal(null); setNote(''); setRestock('') }
+    if (ok) { setModal(null); setNote(''); setRestock(''); setRecv({ rel: 'self', name: '' }) }
+  }
+  function receivedBy() {
+    if (recv.rel === 'self') return `${o!.guest_name ?? 'Le client'} (en personne)`
+    return `${recv.name.trim()} (${recv.rel})`
   }
   function openStatus(to: OrderStatus, label: string) {
     if (needsReason(to) || to === 'delivered') { setModal({ to, label }); return }
@@ -88,6 +99,10 @@ export default function OrderDetail() {
         <Link to="/admin/commandes" className="inline-flex items-center gap-1 text-sm text-brand-700"><ArrowLeft className="h-4 w-4" />Commandes</Link>
         <h1 className="font-mono text-xl font-bold">{o.order_number}</h1><StatusBadge s={o.status} />
         <Button variant="secondary" className="ml-auto" onClick={() => window.print()}><Printer className="h-4 w-4" />Bon de préparation</Button>
+        <Button variant="secondary" onClick={() => printParcelLabel({ orderNumber: o.order_number, customer: o.guest_name ?? 'Client', phone: o.guest_phone,
+          area: o.fulfillment === 'delivery' ? `${o.address_postal_code ?? ''} — ${o.address_city ?? ''}` : 'Retrait à Ngoyo centrale',
+          address: o.fulfillment === 'delivery' ? [o.address_street, o.address_instructions].filter(Boolean).join(' · ') : null,
+          slot: slot ? fmtSlot(slot) : undefined, items: items.filter(i => !i.unavailable).length })}><Printer className="h-4 w-4" />Étiquette colis</Button>
       </div>
       <ErrorBox>{err}</ErrorBox>
 
@@ -97,10 +112,18 @@ export default function OrderDetail() {
           <Button key={a.to} variant={a.variant} loading={busy} onClick={() => openStatus(a.to, a.label)}
             disabled={a.to === 'ready' && !allPicked}>{a.label}</Button>
         ))}
-        {o.payment_status !== 'paid' && !['cancelled', 'refunded'].includes(o.status) && (
-          <Button variant="secondary" loading={busy} onClick={() => confirm(`Confirmer l'encaissement de ${money(o.total)} ?`) && run(() => rpc('confirm_payment', { p_order: o.id }))}>
-            💶 {o.status === 'pending_payment' ? 'Confirmer le paiement' : 'Paiement encaissé'}
+        {o.status === 'out_for_delivery' && (
+          <Button variant="warning" loading={busy} onClick={() => run(() => rpc('notify_order_event', { p_order: o.id, p_event: 'nearby' }))}>
+            <MapPin className="h-4 w-4" />Livreur dans le quartier du client
           </Button>
+        )}
+        {o.payment_status !== 'paid' && !['cancelled', 'refunded'].includes(o.status) && (
+          <Button variant="secondary" onClick={() => setPay({ method: 'mobile_money', ref: '', amount: String(o.total) })}>
+            <Wallet className="h-4 w-4" />{o.status === 'delivered' ? 'Paiement encaissé' : 'Paiement reçu (avant livraison)'}
+          </Button>
+        )}
+        {!['cancelled', 'refunded'].includes(o.status) && (o.customer_id || o.guest_phone) && (
+          <Button variant="ghost" onClick={() => { setNote(''); setMsgOpen(true) }}><MessageSquare className="h-4 w-4" />Message au client</Button>
         )}
         {o.status === 'pending_payment' && <Button variant="warning" onClick={() => setModal({ to: 'cancelled', label: 'Paiement refusé' })}>Paiement refusé</Button>}
         {['confirmed', 'preparing', 'ready', 'delivery_failed'].includes(o.status) && <Button variant="secondary" onClick={async () => {
@@ -170,8 +193,17 @@ export default function OrderDetail() {
               <a className="text-brand-700 underline print:hidden" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.address_street} ${o.address_postal_code} ${o.address_city}`)}`}>Ouvrir l'itinéraire</a>
             </>}
             <div className="text-xs">{agent ? <>✅ Préparée et vérifiée par <strong>{agent}</strong></> : <span className="text-orange-700">⏳ Pas encore vérifiée par un agent</span>}</div>
+            {o.fulfillment === 'delivery' && (
+              <label className="flex items-center gap-2 text-xs print:hidden">🛵 Livreur :
+                <Select className="!w-auto !py-1 text-xs" value={o.courier_id ?? ''} disabled={busy || o.status === 'out_for_delivery'}
+                  onChange={e => run(() => rpc('assign_courier', { p_order: o.id, p_courier: e.target.value || null }))}>
+                  <option value="">— libre (au premier livreur qui la prend) —</option>
+                  {couriers.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+                </Select>
+              </label>
+            )}
             {o.departed_at && <div className="text-xs text-gray-500">Départ : {fmtDateTime(o.departed_at)}</div>}
-            {o.delivered_at && <div className="text-xs text-gray-500">Remise : {fmtDateTime(o.delivered_at)}</div>}
+            {o.delivered_at && <div className="text-xs text-gray-700">✅ Remise le {fmtDateTime(o.delivered_at)}{o.received_by && <> à <strong>{o.received_by}</strong></>}</div>}
             {o.failure_reason && <div className="text-xs text-tomato">Échec : {o.failure_reason}</div>}
             {o.cancel_reason && <div className="text-xs text-tomato">Annulation : {o.cancel_reason}</div>}
           </Card>
@@ -204,7 +236,19 @@ export default function OrderDetail() {
 
       <Modal open={!!modal} onClose={() => setModal(null)} title={modal?.label ?? ''}>
         <div className="space-y-3">
-          {modal?.to === 'delivered' && <p className="text-sm">Confirmez la remise de la commande au client{o.payment_status !== 'paid' ? ` et pensez à encaisser ${money(o.total)}` : ''}.</p>}
+          {modal?.to === 'delivered' && <>
+            <p className="text-sm">La date et l'heure de remise sont enregistrées automatiquement (maintenant : <strong>{new Date().toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</strong>). Le client est notifié.{o.payment_status !== 'paid' ? ` Pensez à encaisser ${money(o.total)}.` : ''}</p>
+            <Field label="Commande remise à" required>
+              <Select value={recv.rel} onChange={e => setRecv({ ...recv, rel: e.target.value })}>
+                <option value="self">Le client en personne ({o.guest_name ?? '—'})</option>
+                <option value="sa fille">Sa fille</option><option value="son fils">Son fils</option>
+                <option value="son épouse">Son épouse</option><option value="son époux">Son époux</option>
+                <option value="un parent">Un parent</option><option value="un voisin">Un voisin</option>
+                <option value="le gardien">Le gardien</option><option value="autre personne">Autre personne</option>
+              </Select>
+            </Field>
+            {recv.rel !== 'self' && <Field label="Nom de la personne" required><Input value={recv.name} onChange={e => setRecv({ ...recv, name: e.target.value })} placeholder="ex. Adèle" autoFocus /></Field>}
+          </>}
           <Field label={needsReason(modal?.to ?? 'confirmed') ? 'Motif' : 'Commentaire'} required={needsReason(modal?.to ?? 'confirmed')}>
             <Textarea value={note} onChange={e => setNote(e.target.value)} />
           </Field>
@@ -220,7 +264,8 @@ export default function OrderDetail() {
           <Button className="w-full" loading={busy} onClick={() => modal?.label === 'Paiement refusé'
             ? run(() => rpc('fail_payment', { p_order: o.id, p_reason: note })).then(ok => ok && setModal(null))
             : confirmModal()}
-            disabled={(needsReason(modal?.to ?? 'confirmed') && note.trim().length < 3) || (modal?.to === 'cancelled' && o.stock_committed && o.status !== 'confirmed' && !restock)}>
+            disabled={(needsReason(modal?.to ?? 'confirmed') && note.trim().length < 3) || (modal?.to === 'cancelled' && o.stock_committed && o.status !== 'confirmed' && !restock)
+              || (modal?.to === 'delivered' && recv.rel !== 'self' && recv.name.trim().length < 2)}>
             Valider
           </Button>
         </div>
@@ -233,6 +278,35 @@ export default function OrderDetail() {
           <ErrorBox>{err}</ErrorBox>
           <Button className="w-full" disabled={note.trim().length < 3} loading={busy}
             onClick={() => run(() => rpc('update_order_item', { p_item: missing!.id, p_unavailable: !missing!.unavailable, p_note: note })).then(ok => ok && setMissing(null))}>Valider</Button>
+        </div>
+      </Modal>
+
+      <Modal open={!!pay} onClose={() => setPay(null)} title="Enregistrer un paiement reçu">
+        {pay && <div className="space-y-3">
+          {o.status !== 'delivered' && <p className="rounded-lg bg-amber-50 p-2 text-sm text-amber-900">Paiement anticipé : le client a payé avant la livraison. Il sera notifié immédiatement.</p>}
+          <Field label="Moyen de paiement" required>
+            <Select value={pay.method} onChange={e => setPay({ ...pay, method: e.target.value })}>
+              <option value="mobile_money">Mobile money (MTN / Airtel)</option><option value="especes">Espèces</option>
+              <option value="virement">Virement</option><option value="autre">Autre</option>
+            </Select>
+          </Field>
+          <Field label="Montant reçu" required><Input type="number" min="0" value={pay.amount} onChange={e => setPay({ ...pay, amount: e.target.value })} /></Field>
+          <Field label="Référence de transaction" hint="N° de transaction mobile money (évite les doublons)"><Input value={pay.ref} onChange={e => setPay({ ...pay, ref: e.target.value })} /></Field>
+          <ErrorBox>{err}</ErrorBox>
+          <Button className="w-full" loading={busy} disabled={!(parseFloat(pay.amount) > 0)}
+            onClick={() => run(() => rpc('confirm_payment', { p_order: o.id, p_provider: pay.method, p_external_ref: pay.ref.trim() || null, p_amount: parseFloat(pay.amount) })).then(ok => ok && setPay(null))}>
+            Confirmer · {money(parseFloat(pay.amount) || 0)}
+          </Button>
+        </div>}
+      </Modal>
+
+      <Modal open={msgOpen} onClose={() => setMsgOpen(false)} title="Message au client">
+        <div className="space-y-3">
+          <p className="text-sm text-gray-600">Le client le reçoit dans l'application BENDO BIO (notification sur son téléphone s'il les a autorisées).</p>
+          <Textarea value={note} onChange={e => setNote(e.target.value)} placeholder="ex. Nous n'avions plus d'aubergines : la ligne a été retirée de votre facture." />
+          <ErrorBox>{err}</ErrorBox>
+          <Button className="w-full" loading={busy} disabled={note.trim().length < 3}
+            onClick={() => run(() => rpc('notify_order_event', { p_order: o.id, p_event: 'message', p_note: note })).then(ok => { if (ok) { setMsgOpen(false); setNote('') } })}>Envoyer</Button>
         </div>
       </Modal>
 

@@ -7,7 +7,7 @@ import { num, UNIT_LABEL, fmtDay, fmtDateTime, daysUntil, MOVEMENT_LABEL, today 
 import { downloadCsv } from '../../lib/csv'
 import type { Lot, Product, Movement, Stock as StockT } from '../../lib/types'
 import LotActionModal, { type LotAction } from '../../components/LotActions'
-import { printLabels, type LabelData } from '../../components/QrLabel'
+import { printLabels, type LabelData, type LabelMode } from '../../components/QrLabel'
 import { stockTone } from './Products'
 import { Button, Card, Field, Input, Select, Textarea, ErrorBox, SuccessBox, Spinner, Badge, Empty } from '../../components/ui'
 
@@ -31,6 +31,8 @@ export default function Stock() {
   const [showEmpty, setShowEmpty] = useState(false)
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<{ lot: Lot; action: LotAction } | null>(null)
+  const [labelMode, setLabelMode] = useState<LabelMode>('qr')
+  const toLabel = (l: Lot): LabelData => ({ id: l.id, product: pmap[l.product_id]?.name ?? '', sku: pmap[l.product_id]?.sku, lot: l.lot_number, expiry: l.expiry_date ? fmtDay(l.expiry_date) : null, kind: l.expiry_kind, received: fmtDay(l.received_at) })
   const load = useCallback(async () => {
     const [p, l, s] = await Promise.all([
       supabase.from('products').select('*').order('name'),
@@ -62,8 +64,12 @@ export default function Stock() {
         <Card className="flex flex-wrap items-center gap-2 !p-3">
           <Input type="search" placeholder="Produit, n° de lot, fournisseur" value={q} onChange={e => setQ(e.target.value)} className="!w-auto flex-1" />
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="accent-brand-700" checked={showEmpty} onChange={e => setShowEmpty(e.target.checked)} />Afficher les lots épuisés</label>
-          <Button variant="secondary" onClick={() => printLabels(visible.filter(l => l.status === 'active').map(l => ({ id: l.id, product: pmap[l.product_id]?.name ?? '', lot: l.lot_number, expiry: l.expiry_date ? fmtDay(l.expiry_date) : null, kind: l.expiry_kind, received: fmtDay(l.received_at) })))}>
-            <Printer className="h-4 w-4" />Étiquettes QR
+          <Select value={labelMode} onChange={e => setLabelMode(e.target.value as LabelMode)} className="!w-auto" aria-label="Format d'étiquette">
+            <option value="qr">Étiquette avec QR (bac, cagette, sachet)</option>
+            <option value="simple">Étiquette simple sans QR (logo + réf. + date)</option>
+          </Select>
+          <Button variant="secondary" onClick={() => printLabels(visible.filter(l => l.status === 'active').map(toLabel), labelMode)}>
+            <Printer className="h-4 w-4" />Imprimer les étiquettes
           </Button>
           <Button variant="secondary" onClick={() => downloadCsv('stock-lots', visible.map(l => ({ produit: pmap[l.product_id]?.name, sku: pmap[l.product_id]?.sku, lot: l.lot_number, fournisseur: l.supplier, recu_le: l.received_at, qte_initiale: l.qty_initial, qte_restante: l.qty_remaining, unite: pmap[l.product_id]?.unit, date_limite: l.expiry_date, type: l.expiry_kind, jours_restants: daysUntil(l.expiry_date), statut: l.status, cout_unitaire: l.unit_cost })))}>
             <Download className="h-4 w-4" />CSV
@@ -90,7 +96,7 @@ export default function Stock() {
                         {l.status === 'blocked' && <button className="rounded-lg bg-green-50 px-2 py-1 font-semibold text-green-700" onClick={() => setSel({ lot: l, action: 'unblock' })}>Débloquer</button>}
                         <button className="rounded-lg bg-gray-100 px-2 py-1" onClick={() => setSel({ lot: l, action: 'edit' })}>Modifier</button>
                         <button className="rounded-lg bg-gray-100 px-2 py-1" onClick={() => setSel({ lot: l, action: 'trace' })}>Traçabilité</button>
-                        <button className="rounded-lg bg-gray-100 px-2 py-1" aria-label="Imprimer l'étiquette" onClick={() => printLabels([{ id: l.id, product: p?.name ?? '', lot: l.lot_number, expiry: l.expiry_date ? fmtDay(l.expiry_date) : null, kind: l.expiry_kind, received: fmtDay(l.received_at) }])}>QR</button>
+                        <button className="rounded-lg bg-gray-100 px-2 py-1" aria-label="Imprimer l'étiquette" onClick={() => printLabels([toLabel(l)], labelMode)}>Étiquette</button>
                       </div>
                     </td>
                   </tr>) })}
@@ -124,7 +130,7 @@ export function Reception({ products, onDone, presetProduct }: { products: Produ
         p_expiry_kind: f.kind, p_supplier: f.supplier || null, p_unit_cost: f.cost ? parseFloat(f.cost) : null, p_received: f.received || null, p_notes: f.notes || null })
       const { data: lot } = await supabase.from('lots').select('*').eq('id', id).single()
       setOk(`Réception enregistrée : ${f.qty} ${p ? UNIT_LABEL[p.unit] : ''} de ${p?.name} (lot ${(lot as Lot)?.lot_number}). Stock et alertes mis à jour.`)
-      if (lot) setLastLabel({ id, product: p?.name ?? '', lot: (lot as Lot).lot_number, expiry: f.expiry ? fmtDay(f.expiry) : null, kind: f.kind, qty: `${f.qty} ${p ? UNIT_LABEL[p.unit] : ''}`, received: fmtDay(f.received) })
+      if (lot) setLastLabel({ id, product: p?.name ?? '', sku: p?.sku, lot: (lot as Lot).lot_number, expiry: f.expiry ? fmtDay(f.expiry) : null, kind: f.kind, qty: `${f.qty} ${p ? UNIT_LABEL[p.unit] : ''}`, received: fmtDay(f.received) })
       setF({ ...empty, supplier: f.supplier, received: f.received }); onDone()
     } catch (e) { setErr(errMsg(e)) } finally { setBusy(false) }
   }
@@ -144,7 +150,10 @@ export function Reception({ products, onDone, presetProduct }: { products: Produ
           <Field label="Notes (température, état…)"><Textarea rows={1} value={f.notes} onChange={e => setF({ ...f, notes: e.target.value })} /></Field>
         </div>
         <ErrorBox>{err}</ErrorBox><SuccessBox>{ok}</SuccessBox>
-        {lastLabel && <Button type="button" variant="secondary" onClick={() => printLabels([lastLabel])}><Printer className="h-4 w-4" />Imprimer l'étiquette QR de ce lot</Button>}
+        {lastLabel && <div className="flex flex-wrap gap-2">
+          <Button type="button" variant="secondary" onClick={() => printLabels([lastLabel], 'qr')}><Printer className="h-4 w-4" />Étiquette QR (bac / cagette)</Button>
+          <Button type="button" variant="secondary" onClick={() => printLabels([lastLabel], 'simple')}><Printer className="h-4 w-4" />Étiquette simple (sans QR)</Button>
+        </div>}
         <Button type="submit" loading={busy}>Valider l'entrée</Button>
       </form>
     </Card>

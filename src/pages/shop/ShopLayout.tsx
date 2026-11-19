@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { ShoppingBasket, User, LayoutDashboard, Search } from 'lucide-react'
+import { ShoppingBasket, User, LayoutDashboard, Search, Bell, X } from 'lucide-react'
+import { useNotifications } from '../../lib/notifications'
 import { useCart } from '../../lib/cart'
 import { useAuth } from '../../lib/auth'
 import { useSettings } from '../../lib/hooks'
@@ -7,8 +8,9 @@ import { BRAND } from '../../lib/brand'
 
 export default function ShopLayout() {
   const { count } = useCart()
-  const { session, isStaff } = useAuth()
+  const { session, isStaff, isCourier } = useAuth()
   const { settings } = useSettings()
+  const { unread, toast, dismissToast } = useNotifications()
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-40 border-b border-brand-100 bg-white/95 backdrop-blur">
@@ -23,7 +25,14 @@ export default function ShopLayout() {
           </nav>
           <div className="ml-auto flex items-center gap-1">
             <Link to="/catalogue" className="rounded-xl p-2.5 text-brand-800 hover:bg-brand-50 md:hidden" aria-label="Rechercher"><Search className="h-5 w-5" /></Link>
+            {isCourier && <Link to="/livreur" className="flex items-center gap-1 rounded-xl bg-carrot px-3 py-2 text-sm font-semibold text-white" title="Espace livreur">🛵<span className="hidden sm:inline">Livraisons</span></Link>}
             {isStaff && <Link to="/admin" className="flex items-center gap-1 rounded-xl bg-brand-800 px-3 py-2 text-sm font-semibold text-white" title="Espace gestion"><LayoutDashboard className="h-4 w-4" /><span className="hidden sm:inline">Gestion</span></Link>}
+            {session && (
+              <Link to="/notifications" className="relative rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label={`Notifications (${unread} non lue(s))`}>
+                <Bell className="h-5 w-5" />
+                {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-tomato px-1 text-xs font-bold text-white">{unread}</span>}
+              </Link>
+            )}
             <Link to={session ? '/compte' : '/connexion'} className="rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label="Mon compte"><User className="h-5 w-5" /></Link>
             <Link to="/panier" className="relative rounded-xl p-2.5 text-brand-800 hover:bg-brand-50" aria-label={`Panier (${count} article(s))`}>
               <ShoppingBasket className="h-6 w-6" />
@@ -33,6 +42,18 @@ export default function ShopLayout() {
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5"><Outlet /></main>
+      {toast && (
+        <div role="status" className="fixed inset-x-3 top-20 z-50 mx-auto max-w-md rounded-2xl border border-brand-200 bg-white p-4 shadow-2xl sm:right-4 sm:left-auto">
+          <div className="flex items-start gap-3">
+            <Bell className="mt-0.5 h-5 w-5 flex-none text-brand-700" />
+            <Link to="/notifications" onClick={dismissToast} className="min-w-0 flex-1">
+              <div className="font-semibold text-gray-900">{toast.subject}</div>
+              {toast.body && <div className="text-sm text-gray-700">{toast.body}</div>}
+            </Link>
+            <button onClick={dismissToast} aria-label="Fermer"><X className="h-4 w-4 text-gray-500" /></button>
+          </div>
+        </div>
+      )}
       <footer className="mt-10 bg-brand-900 text-brand-100">
         <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 text-sm sm:grid-cols-3">
           <div>
